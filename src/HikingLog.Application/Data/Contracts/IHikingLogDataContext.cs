@@ -1,7 +1,7 @@
+namespace HikingLog.Application.Data.Contracts;
+
 using HikingLog.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-
-namespace HikingLog.Application.Data.Contracts;
 
 /// <summary>Defines the data access contract for the HikingLog database context.</summary>
 public interface IHikingLogDataContext

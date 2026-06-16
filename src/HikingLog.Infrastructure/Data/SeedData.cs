@@ -1,7 +1,7 @@
+namespace HikingLog.Infrastructure.Data;
+
 using HikingLog.Domain.Entities;
 using HikingLog.Domain.Enums;
-
-namespace HikingLog.Infrastructure.Data;
 
 /// <summary>Provides static seed data for the HikingLog database.</summary>
 public static class SeedData

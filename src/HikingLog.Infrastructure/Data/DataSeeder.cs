@@ -1,8 +1,8 @@
+namespace HikingLog.Infrastructure.Data;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
-namespace HikingLog.Infrastructure.Data;
 
 /// <summary>Seeds the database with initial data when running in Development.</summary>
 public static class DataSeeder
@@ -13,7 +13,7 @@ public static class DataSeeder
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<HikingLogDbContext>();
-        var logger  = scope.ServiceProvider.GetRequiredService<ILogger<HikingLogDbContext>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<HikingLogDbContext>>();
 
         if (await context.Routes.AnyAsync())
         {

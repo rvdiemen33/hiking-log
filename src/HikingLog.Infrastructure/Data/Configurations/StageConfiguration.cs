@@ -1,9 +1,9 @@
+namespace HikingLog.Infrastructure.Data.Configurations;
+
 using HikingLog.Domain.Entities;
 using HikingLog.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
-namespace HikingLog.Infrastructure.Data.Configurations;
 
 /// <summary>Fluent API configuration for the <see cref="Stage"/> entity.</summary>
 internal sealed class StageConfiguration : IEntityTypeConfiguration<Stage>

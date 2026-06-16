@@ -223,6 +223,8 @@ One faker per entity in `Fakers/`. Use Bogus.
 
 **Naming:** Name the faker after the **entity**, not the request type — `RouteFaker`, not `CreateRouteRequestFaker`. The class name appears in test code dozens of times; the entity name is already familiar.
 
+**Always use `CustomInstantiator` — never `RuleFor` — for C# records.** API request models are positional records and have no parameterless constructor. `Faker<T>` calls `Activator.CreateInstance<T>()` internally and throws `MissingMethodException` at runtime when no parameterless constructor exists. `RuleFor` only works for classes with a parameterless constructor.
+
 ```csharp
 /// <summary>Generates valid <see cref="CreateRouteRequest"/> test data.</summary>
 public class RouteFaker : Faker<CreateRouteRequest>
@@ -230,11 +232,12 @@ public class RouteFaker : Faker<CreateRouteRequest>
     /// <summary>Initializes a new instance of <see cref="RouteFaker"/>.</summary>
     public RouteFaker() : base("nl")
     {
-        RuleFor(r => r.Name, f => f.Address.City() + "pad");
-        RuleFor(r => r.Code, f => "LAW " + f.Random.Int(1, 20));
-        RuleFor(r => r.Country, _ => "Nederland");
-        RuleFor(r => r.TotalDistanceKm, f => f.Random.Decimal(50, 600));
-        RuleFor(r => r.Description, f => f.Lorem.Sentence());
+        CustomInstantiator(f => new CreateRouteRequest(
+            f.Address.City() + "pad",
+            "LAW " + f.Random.Int(1, 20),
+            "Nederland",
+            f.Random.Decimal(50, 600),
+            f.Lorem.Sentence()));
     }
 }
 ```
@@ -248,14 +251,15 @@ public class StageFaker : Faker<CreateStageRequest>
     /// <summary>Initializes a new instance of <see cref="StageFaker"/>.</summary>
     public StageFaker(int routeId) : base("nl")
     {
-        RuleFor(e => e.RouteId, _ => routeId);
-        RuleFor(e => e.Number, f => f.Random.Int(1, 30));
-        RuleFor(e => e.Name, f => f.Address.City() + " - " + f.Address.City());
-        RuleFor(e => e.StartPoint, f => f.Address.City());
-        RuleFor(e => e.EndPoint, f => f.Address.City());
-        RuleFor(e => e.DistanceKm, f => f.Random.Decimal(5, 35));
-        RuleFor(e => e.ElevationDifferenceM, f => f.Random.Decimal(0, 800));
-        RuleFor(e => e.Difficulty, f => f.PickRandom<Difficulty>());
+        CustomInstantiator(f => new CreateStageRequest(
+            routeId,
+            f.Random.Int(1, 30),
+            f.Address.City() + " - " + f.Address.City(),
+            f.Address.City(),
+            f.Address.City(),
+            f.Random.Decimal(5, 35),
+            f.Random.Decimal(0, 800),
+            f.PickRandom<Difficulty>()));
     }
 }
 ```
@@ -279,8 +283,10 @@ public class StageFaker : Faker<CreateStageRequest>
 - [ ] One test class per endpoint (`<Verb><Feature>Tests.cs`)
 - [ ] `[Collection(nameof(HikingLogTier0Collection))]` attribute present
 - [ ] All required status codes covered per verb (see table above)
+- [ ] Faker uses `CustomInstantiator` (records have no parameterless constructor — `RuleFor` throws at runtime)
 - [ ] Faker created in `Fakers/` folder; child fakers accept parent id in constructor
 - [ ] Tier 0 seeds parent records before testing child endpoints
 - [ ] Tier 3 uses `factory.Services.CreateScope()`, not HTTP client
 - [ ] `IAsyncLifetime` NOT re-implemented in test class
 - [ ] XML doc `<summary>` on fakers and their constructors
+- [ ] **Run `dotnet test tests/HikingLog.IntegrationTests` after writing tests** — always verify before reporting done

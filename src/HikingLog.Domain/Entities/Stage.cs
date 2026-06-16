@@ -1,6 +1,6 @@
-using HikingLog.Domain.Enums;
-
 namespace HikingLog.Domain.Entities;
+
+using HikingLog.Domain.Enums;
 
 /// <summary>
 ///     Represents a single day-stage of a long-distance hiking route.

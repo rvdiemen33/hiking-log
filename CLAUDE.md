@@ -110,6 +110,7 @@ Application/
 
 ## Coding standards
 
+- File structure: namespace declaration first (file-scoped, no braces), then `using` directives — never the other way around.
 - Validators are `internal sealed class` in the same file as the command or query.
 - Use Riok.Mapperly or static extension methods for API model mapping — never AutoMapper.
 - Always use FluentValidation for input validation.
