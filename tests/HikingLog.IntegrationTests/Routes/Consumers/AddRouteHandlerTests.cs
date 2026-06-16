@@ -1,14 +1,15 @@
 namespace HikingLog.IntegrationTests.Routes.Consumers;
 
-using HikingLog.Application.Common;
-using HikingLog.Application.Routes.Commands;
+using Application.Common;
+using Application.Routes.Commands;
+using Configuration;
+using Domain.Entities;
 using HikingLog.Infrastructure.Data;
-using HikingLog.IntegrationTests.Configuration;
-using HikingLog.IntegrationTests.Infrastructure;
+using Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using OneOf;
 
-/// <summary>Tier 3 tests for <see cref="AddRouteHandler"/> — verifies database persistence directly.</summary>
+/// <summary>Tier 3 tests for <see cref="AddRouteHandler" /> — verifies database persistence directly.</summary>
 [Collection(nameof(HikingLogTier0Collection))]
 public class AddRouteHandlerTests(HikingTestWebApplicationFactory factory) : IntegrationTest(factory)
 {
@@ -18,16 +19,16 @@ public class AddRouteHandlerTests(HikingTestWebApplicationFactory factory) : Int
     [Fact]
     public async Task Handle_WhenValid_PersistsRoute()
     {
-        using var scope = _factory.Services.CreateScope();
-        var handler = scope.ServiceProvider
+        using IServiceScope scope = _factory.Services.CreateScope();
+        ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>> handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>>>();
 
         var command = new AddRoute("Noordzeepad", "LAW 1", "Nederland", 495m, "Langs de Noordzeekust");
-        var result = await handler.Handle(command, CancellationToken.None);
+        OneOf<AddRouteResult, ValidationFailed> result = await handler.Handle(command, CancellationToken.None);
 
         Assert.True(result.IsT0);
-        var db = scope.ServiceProvider.GetRequiredService<HikingLogDbContext>();
-        var route = await db.Routes.FindAsync(result.AsT0.Id);
+        HikingLogDbContext db = scope.ServiceProvider.GetRequiredService<HikingLogDbContext>();
+        Route? route = await db.Routes.FindAsync(result.AsT0.Id);
         Assert.NotNull(route);
         Assert.Equal("Noordzeepad", route.Name);
         Assert.Equal("LAW 1", route.Code);
