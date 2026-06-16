@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HikingLog.Api/HikingLog.Api.csproj" />
+    <Project Path="src/HikingLog.Application/HikingLog.Application.csproj" />
+    <Project Path="src/HikingLog.Domain/HikingLog.Domain.csproj" />
+    <Project Path="src/HikingLog.Infrastructure/HikingLog.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HikingLog.Api.Tests/HikingLog.Api.Tests.csproj" />
+    <Project Path="tests/HikingLog.Application.Tests/HikingLog.Application.Tests.csproj" />
+  </Folder>
+</Solution>
