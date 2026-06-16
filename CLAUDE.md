@@ -5,7 +5,7 @@
 REST API for tracking completed stages on long-distance hiking trails (LAW, Pieterpad, GR5).
 Built with **Clean Architecture + Vertical Slice Architecture** across four projects in a single .NET 10 solution.
 
-Clean Architecture defines the layer boundary (Domain → Application → Infrastructure → Api) and ensures inner layers know nothing about outer layers. Vertical Slice Architecture determines the internal organization of `HikingLog.Application`: each feature (Route, Etappe, HikeLog) is a standalone vertical slice with its own commands, queries, and validators. Slices share no logic with each other — shared contracts live in `Data/Contracts/`.
+Clean Architecture defines the layer boundary (Domain → Application → Infrastructure → Api) and ensures inner layers know nothing about outer layers. Vertical Slice Architecture determines the internal organization of `HikingLog.Application`: each feature (Route, Stage, HikeLog) is a standalone vertical slice with its own commands, queries, and validators. Slices share no logic with each other — shared contracts live in `Data/Contracts/`.
 
 ```
 HikingLog.sln
@@ -23,7 +23,7 @@ HikingLog.sln
 ## Branch workflow
 
 - Never work directly on `main` — always create a feature branch before starting.
-- Naming convention: `feature/<short-description>` (e.g. `feature/add-etappe-query`).
+- Naming convention: `feature/<short-description>` (e.g. `feature/add-stage-query`).
 - For larger or parallel tasks: use `git worktree` so branches can be built and tested in isolation.
 
 ## Verification
@@ -95,7 +95,7 @@ Application/
 │   └── Queries/
 │       ├── GetRoute.cs        ← record + validator + handler in one file
 │       └── GetRoutes.cs
-├── Etappes/
+├── Stages/
 │   ├── Commands/
 │   └── Queries/
 ├── HikeLogs/
