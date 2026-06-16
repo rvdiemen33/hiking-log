@@ -64,7 +64,7 @@ public class PostRouteTests(HikingTestWebApplicationFactory factory) : Integrati
 - Constructor signature must match `IntegrationTest(HikingTestWebApplicationFactory factory)`
 - `IAsyncLifetime` is implemented in `IntegrationTest` — do **not** re-implement it in test classes
 
-One class per endpoint. Naming convention: `<Verb><Feature>Tests` — e.g. `PostRouteTests`, `GetRouteTests`, `DeleteEtappeTests`.
+One class per endpoint. Naming convention: `<Verb><Feature>Tests` — e.g. `PostRouteTests`, `GetRouteTests`, `DeleteStageTests`.
 
 ---
 
@@ -84,15 +84,15 @@ One class per endpoint. Naming convention: `<Verb><Feature>Tests` — e.g. `Post
 
 ### Seeding dependent records
 
-When testing an endpoint for a child resource (Etappe, HikeLog), you must first seed the parent record via HTTP before exercising the endpoint under test. Use `CreateClient()` for the seeding call too — Respawn resets between tests so there is no shared state to rely on.
+When testing an endpoint for a child resource (Stage, HikeLog), you must first seed the parent record via HTTP before exercising the endpoint under test. Use `CreateClient()` for the seeding call too — Respawn resets between tests so there is no shared state to rely on.
 
 ```csharp
-// Seed a route first, then create an etappe under it
+// Seed a route first, then create a stage under it
 var client = CreateClient();
 var routeResponse = await client.PostAsJsonAsync("/routes", new RouteFaker().Generate());
 var routeId = (await routeResponse.Content.ReadFromJsonAsync<RouteResponse>())!.Id;
 
-var response = await client.PostAsJsonAsync("/etappes", new EtappeFaker(routeId).Generate());
+var response = await client.PostAsJsonAsync("/stages", new StageFaker(routeId).Generate());
 Assert.Equal(StatusCodes.Status201Created, (int)response.StatusCode);
 ```
 
@@ -213,7 +213,7 @@ public class AddRouteHandlerTests(HikingTestWebApplicationFactory factory) : Int
 }
 ```
 
-When testing a child handler (e.g. `AddEtappeHandler`), seed the parent record by resolving its handler from the same scope before calling the handler under test.
+When testing a child handler (e.g. `AddStageHandler`), seed the parent record by resolving its handler from the same scope before calling the handler under test.
 
 ---
 
@@ -242,11 +242,11 @@ public class RouteFaker : Faker<CreateRouteRequest>
 For fakers of child resources, accept the parent id in the constructor:
 
 ```csharp
-/// <summary>Generates valid <see cref="CreateEtappeRequest"/> test data.</summary>
-public class EtappeFaker : Faker<CreateEtappeRequest>
+/// <summary>Generates valid <see cref="CreateStageRequest"/> test data.</summary>
+public class StageFaker : Faker<CreateStageRequest>
 {
-    /// <summary>Initializes a new instance of <see cref="EtappeFaker"/>.</summary>
-    public EtappeFaker(int routeId) : base("nl")
+    /// <summary>Initializes a new instance of <see cref="StageFaker"/>.</summary>
+    public StageFaker(int routeId) : base("nl")
     {
         RuleFor(e => e.RouteId, _ => routeId);
         RuleFor(e => e.Number, f => f.Random.Int(1, 30));

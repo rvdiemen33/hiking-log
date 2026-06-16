@@ -3,7 +3,7 @@ name: vertical-slice
 description: >
   This skill should be used when implementing a COMPLETE vertical slice across ALL FOUR layers
   (Application, Infrastructure, Api, DI) for HikingLog. Activate when the user asks to implement
-  or scaffold a full feature (Routes, Etappes, HikeLogs) end-to-end: all CRUD handlers,
+  or scaffold a full feature (Routes, Stages, HikeLogs) end-to-end: all CRUD handlers,
   controller, Fluent API config, and DI registration together. Also activate when the user
   asks to add or scaffold any individual layer component (controller, handlers, DI registration,
   models, mapping) for a feature — the skill contains the authoritative patterns for all layers.
@@ -44,8 +44,8 @@ public class Route
     /// <summary>Gets or sets the optional description.</summary>
     public string? Description { get; set; }
 
-    /// <summary>Gets or sets the navigation to etappes on this route.</summary>
-    public ICollection<Etappe> Etappes { get; set; } = [];
+    /// <summary>Gets or sets the navigation to stages on this route.</summary>
+    public ICollection<Stage> Stages { get; set; } = [];
 }
 ```
 
@@ -123,7 +123,7 @@ public sealed class AddRouteHandler(IHikingLogDataContext db, IValidator<AddRout
 
 **OneOf signatures:**
 - `Add`: `OneOf<TResult, ValidationFailed>` — for top-level entities (Route)
-- `Add` (child with parent FK check): `OneOf<TResult, ValidationFailed, NotFound>` — when the parent must exist (e.g. AddEtappe checks RouteId, AddHikeLog checks EtappeId)
+- `Add` (child with parent FK check): `OneOf<TResult, ValidationFailed, NotFound>` — when the parent must exist (e.g. AddStage checks RouteId, AddHikeLog checks StageId)
 - `Update`: `OneOf<TResult, ValidationFailed, NotFound>`
 - `Delete`: `OneOf<Success, NotFound>`
 - `Get single`: `OneOf<TResult, NotFound>`
@@ -284,8 +284,8 @@ internal sealed class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.Property(r => r.Country).IsRequired().HasMaxLength(100);
         builder.Property(r => r.TotalDistanceKm).HasColumnType("decimal(10,2)");
 
-        // Navigation: Route (1) → Etappe (n)
-        builder.HasMany(r => r.Etappes)
+        // Navigation: Route (1) → Stage (n)
+        builder.HasMany(r => r.Stages)
                .WithOne(e => e.Route)
                .HasForeignKey(e => e.RouteId)
                .OnDelete(DeleteBehavior.Cascade);
@@ -304,7 +304,7 @@ modelBuilder.ApplyConfiguration(new RouteConfiguration());
 - `HasColumnType("decimal(10,2)")` for all `decimal` properties
 - `HasConversion<string>()` for enum properties (stored as string, e.g. `Difficulty`)
 - Define navigation properties in both directions; declare FK explicitly
-- Define each FK relationship in the **child entity's** configuration, not the parent's. `HikeLogConfiguration` owns `HasOne(h => h.Etappe).WithMany(...)`, not `EtappeConfiguration`.
+- Define each FK relationship in the **child entity's** configuration, not the parent's. `HikeLogConfiguration` owns `HasOne(h => h.Stage).WithMany(...)`, not `StageConfiguration`.
 
 ### 2c. Create the migration
 
