@@ -1,8 +1,9 @@
+using HikingLog.Infrastructure.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
@@ -21,7 +22,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
+    var forecast = Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
@@ -35,7 +36,12 @@ app.MapGet("/weatherforecast", () =>
 
 app.Run();
 
+/// <summary>Placeholder weather forecast record — replace with domain models.</summary>
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
+    /// <summary>Temperature in Fahrenheit, derived from <see cref="TemperatureC"/>.</summary>
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
+/// <summary>Entry point marker class exposing Program to WebApplicationFactory in integration tests.</summary>
+public partial class Program { }

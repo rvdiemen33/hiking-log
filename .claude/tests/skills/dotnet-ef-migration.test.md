@@ -1,116 +1,116 @@
 # Evals: dotnet-ef-migration skill
 
-Elke test bevat een prompt, het verwachte gedrag en de slaagcriteria.
-Stuur de prompt in een verse sessie en beoordeel of de skill geladen wordt.
+Each test contains a prompt, the expected behavior, and pass criteria.
+Send the prompt in a fresh session and verify that the skill is loaded.
 
 ---
 
-## Positieve tests — skill moet activeren
+## Positive tests — skill must activate
 
-### Test 1: Nieuwe migratie na entiteitswijziging
+### Test 1: New migration after entity change
 
 **Prompt:**
-> Ik heb een property toegevoegd aan de HikeLog-entiteit. Hoe maak ik een migratie aan?
+> I added a property to the HikeLog entity. How do I create a migration?
 
-**Verwacht gedrag:**
-Skill laadt. Claude geeft het juiste `dotnet ef migrations add`-commando met beide projectvlaggen.
+**Expected behavior:**
+Skill loads. Claude provides the correct `dotnet ef migrations add` command with both project flags.
 
-**Slaagcriteria:**
-- [ ] Commando bevat `--project src/HikingLog.Infrastructure`
-- [ ] Commando bevat `--startup-project src/HikingLog.Api`
-- [ ] Claude noemt naamgevingsconventie (PascalCase, beschrijvend)
+**Pass criteria:**
+- [ ] Command contains `--project src/HikingLog.Infrastructure`
+- [ ] Command contains `--startup-project src/HikingLog.Api`
+- [ ] Claude mentions the naming convention (PascalCase, descriptive)
 
 ---
 
-### Test 2: Database bijwerken
+### Test 2: Update the database
 
 **Prompt:**
-> Update de database naar de nieuwste migratie.
+> Update the database to the latest migration.
 
-**Verwacht gedrag:**
-Skill laadt. Claude geeft het `dotnet ef database update`-commando met beide projectvlaggen.
+**Expected behavior:**
+Skill loads. Claude provides the `dotnet ef database update` command with both project flags.
 
-**Slaagcriteria:**
-- [ ] Correct commando met beide vlaggen
-- [ ] Geen vermelding van `--project` zonder `--startup-project`
+**Pass criteria:**
+- [ ] Correct command with both flags
+- [ ] No mention of `--project` without `--startup-project`
 
 ---
 
-### Test 3: EF-commando algemeen
+### Test 3: General EF command question
 
 **Prompt:**
-> Welke EF-commando's moet ik uitvoeren na het aanpassen van de DbContext?
+> Which EF commands do I need to run after modifying the DbContext?
 
-**Verwacht gedrag:**
-Skill laadt. Claude beschrijft de volledige workflow: build → migrations add → review → database update → test.
+**Expected behavior:**
+Skill loads. Claude describes the full workflow: build → migrations add → review → database update → test.
 
-**Slaagcriteria:**
-- [ ] Workflow is volledig (stap 1 t/m 6)
-- [ ] Beide projectvlaggen aanwezig in elk commando
+**Pass criteria:**
+- [ ] Workflow is complete (steps 1 through 6)
+- [ ] Both project flags present in every command
 
 ---
 
-### Test 4: Migratie ongedaan maken
+### Test 4: Undo a migration
 
 **Prompt:**
-> Ik heb een foute migratie aangemaakt die nog niet is toegepast. Hoe verwijder ik hem?
+> I created a wrong migration that has not been applied yet. How do I remove it?
 
-**Verwacht gedrag:**
-Skill laadt. Claude geeft `dotnet ef migrations remove` met de juiste vlaggen en waarschuwt dat dit alleen werkt als de migratie nog niet is toegepast.
+**Expected behavior:**
+Skill loads. Claude provides `dotnet ef migrations remove` with the correct flags and warns that this only works if the migration has not been applied.
 
-**Slaagcriteria:**
-- [ ] `migrations remove` commando aanwezig
-- [ ] Waarschuwing dat migratie niet toegepast mag zijn
+**Pass criteria:**
+- [ ] `migrations remove` command present
+- [ ] Warning that the migration must not have been applied
 
 ---
 
-### Test 5: Schema-verandering na nieuwe entiteit (impliciet)
+### Test 5: Schema change after new entity (implicit)
 
 **Prompt:**
-> Ik heb de Route-entiteit uitgebreid met een GPX-veld. Wat zijn de volgende stappen?
+> I extended the Route entity with a GPX field. What are the next steps?
 
-**Verwacht gedrag:**
-Skill laadt. Claude beschrijft build → migratie aanmaken → toepassen als onderdeel van de volgende stappen.
+**Expected behavior:**
+Skill loads. Claude describes build → create migration → apply as part of the next steps.
 
-**Slaagcriteria:**
-- [ ] Migratiestap wordt expliciet genoemd
-- [ ] Correcte commando's met projectvlaggen
+**Pass criteria:**
+- [ ] Migration step explicitly mentioned
+- [ ] Correct commands with project flags
 
 ---
 
-## Negatieve tests — skill mag NIET activeren
+## Negative tests — skill must NOT activate
 
-### Test N1: Nieuwe controller aanmaken
+### Test N1: Create a new controller
 
 **Prompt:**
-> Maak een RoutesController aan met CRUD-endpoints.
+> Create a RoutesController with CRUD endpoints.
 
-**Verwacht gedrag:**
-Skill laadt NIET. Claude maakt de controller zonder migratiecontext.
+**Expected behavior:**
+Skill does NOT load. Claude creates the controller without migration context.
 
 ---
 
-### Test N2: Algemene architectuurvraag
+### Test N2: General architecture question
 
 **Prompt:**
-> Leg de Clean Architecture-laagverdeling uit voor dit project.
+> Explain the Clean Architecture layer separation for this project.
 
-**Verwacht gedrag:**
-Skill laadt NIET. Claude beantwoordt op basis van CLAUDE.md zonder migratiecontext.
+**Expected behavior:**
+Skill does NOT load. Claude answers based on CLAUDE.md without migration context.
 
 ---
 
-### Test N3: Entiteit aanmaken zonder database-actie
+### Test N3: Create entity without database action
 
 **Prompt:**
-> Maak de HikeLog-klasse aan in het domeinproject.
+> Create the HikeLog class in the domain project.
 
-**Verwacht gedrag:**
-Skill laadt NIET (er is nog geen migratie nodig — de entiteit bestaat nog niet in de DbContext).
+**Expected behavior:**
+Skill does NOT load (no migration needed yet — the entity does not exist in the DbContext).
 
 ---
 
-## Activatie controleren
+## Verifying activation
 
-Gebruik `/context` in Claude Code na het sturen van de prompt om te zien welke skills geladen zijn.
-Als `dotnet-ef-migration` zichtbaar is onder de geladen skills, is de test geslaagd.
+Use `/context` in Claude Code after sending the prompt to see which skills are loaded.
+If `dotnet-ef-migration` is visible under the loaded skills, the test passed.
