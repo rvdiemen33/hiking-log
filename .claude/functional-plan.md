@@ -18,7 +18,7 @@ Represents a long-distance hiking trail (e.g. LAW 1, Pieterpad, GR5).
 | TotalDistanceKm | decimal | Total length in km |
 | Description | string? | Optional |
 
-### Etappe
+### Stage
 A single day-stage of a route.
 
 | Property | Type | Notes |
@@ -39,7 +39,7 @@ A log entry for a completed stage.
 | Property | Type | Notes |
 |----------|------|-------|
 | Id | int | PK |
-| EtappeId | int | FK → Etappe |
+| StageId | int | FK → Stage |
 | DateHiked | DateOnly | Date of the hike |
 | DurationMinutes | int | Duration in minutes |
 | Weather | string | Weather conditions |
@@ -49,7 +49,7 @@ A log entry for a completed stage.
 ### Relationships
 
 ```
-Route (1) ──── (n) Etappe (1) ──── (n) HikeLog
+Route (1) ──── (n) Stage (1) ──── (n) HikeLog
 ```
 
 ### Enums
@@ -72,15 +72,15 @@ Difficulty: Easy | Moderate | Hard
 | PUT | `/routes/{id}` | Update a route |
 | DELETE | `/routes/{id}` | Delete a route |
 
-### Etappes
+### Stages
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/routes/{routeId}/etappes` | Get all stages for a route |
-| GET | `/etappes/{id}` | Get a single stage |
-| POST | `/etappes` | Create a stage |
-| PUT | `/etappes/{id}` | Update a stage |
-| DELETE | `/etappes/{id}` | Delete a stage |
+| GET | `/routes/{routeId}/stages` | Get all stages for a route |
+| GET | `/stages/{id}` | Get a single stage |
+| POST | `/stages` | Create a stage |
+| PUT | `/stages/{id}` | Update a stage |
+| DELETE | `/stages/{id}` | Delete a stage |
 
 ### HikeLogs
 
@@ -88,7 +88,7 @@ Difficulty: Easy | Moderate | Hard
 |--------|----------|-------------|
 | GET | `/hikelogs` | Get all logs; supports `?year=2024` filter |
 | GET | `/hikelogs/{id}` | Get a single log |
-| GET | `/etappes/{etappeId}/hikelogs` | Get logs for a specific stage |
+| GET | `/stages/{stageId}/hikelogs` | Get logs for a specific stage |
 | POST | `/hikelogs` | Log a completed stage |
 | PUT | `/hikelogs/{id}` | Update a log |
 | DELETE | `/hikelogs/{id}` | Delete a log |
@@ -115,8 +115,8 @@ Difficulty: Easy | Moderate | Hard
 
 ## Business rules
 
-- Validate that the referenced route exists when creating an etappe.
-- Validate that the referenced etappe exists when creating a hikelog.
+- Validate that the referenced route exists when creating a stage.
+- Validate that the referenced stage exists when creating a hikelog.
 - Rating must be between 1 and 5.
 
 ---
@@ -136,7 +136,7 @@ Seed three real long-distance routes, each with at least five stages with realis
 ## Possible extensions (out of scope for now)
 
 - Photo URL on `HikeLog`
-- GPX file link per etappe
+- GPX file link per stage
 - Multi-user support (JWT authentication)
 - Export to CSV / Excel
 - Import from existing Excel file

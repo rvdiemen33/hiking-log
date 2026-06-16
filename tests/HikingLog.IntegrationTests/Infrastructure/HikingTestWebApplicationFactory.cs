@@ -1,3 +1,5 @@
+namespace HikingLog.IntegrationTests.Infrastructure;
+
 using HikingLog.Infrastructure.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -6,8 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Respawn;
 using Testcontainers.MsSql;
-
-namespace HikingLog.IntegrationTests.Infrastructure;
 
 /// <summary>
 /// WebApplicationFactory for integration tests. Starts a SQL Server container via Testcontainers,
@@ -55,9 +55,18 @@ public class HikingTestWebApplicationFactory : WebApplicationFactory<Program>, I
     {
         await _sqlContainer.StartAsync();
 
+        // Apply migrations directly before accessing Services, so that when the app starts
+        // (via Services.CreateScope below) and DataSeeder runs, the tables already exist.
+        var opts = new DbContextOptionsBuilder<HikingLogDbContext>()
+            .UseSqlServer(_sqlContainer.GetConnectionString())
+            .Options;
+        await using (var db = new HikingLogDbContext(opts))
+        {
+            await db.Database.MigrateAsync();
+        }
+
+        // Accessing Services starts the ASP.NET Core host, which runs Program.cs including DataSeeder.
         using var scope = Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HikingLogDbContext>();
-        await db.Database.MigrateAsync();
 
         await using var connection = new SqlConnection(_sqlContainer.GetConnectionString());
         await connection.OpenAsync();

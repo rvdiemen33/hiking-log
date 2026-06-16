@@ -1,10 +1,10 @@
+namespace HikingLog.Infrastructure.Extensions;
+
 using HikingLog.Application.Data.Contracts;
 using HikingLog.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
-namespace HikingLog.Infrastructure.Extensions;
 
 /// <summary>Extension methods for registering Infrastructure layer services.</summary>
 public static class ServiceCollectionExtensions

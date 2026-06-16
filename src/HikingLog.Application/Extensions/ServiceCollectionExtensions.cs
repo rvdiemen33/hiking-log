@@ -1,0 +1,31 @@
+namespace HikingLog.Application.Extensions;
+
+using FluentValidation;
+using HikingLog.Application.Common;
+using HikingLog.Application.Routes.Commands;
+using HikingLog.Application.Routes.Queries;
+using Microsoft.Extensions.DependencyInjection;
+using OneOf;
+
+/// <summary>Extension methods for registering Application layer services.</summary>
+public static class ServiceCollectionExtensions
+{
+    /// <summary>Adds all Application handlers and validators to the DI container.</summary>
+    /// <param name="services">The service collection to add services to.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        // Routes — handlers
+        services.AddScoped<ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>>, AddRouteHandler>();
+        services.AddScoped<ICommandHandler<UpdateRoute, OneOf<UpdateRouteResult, ValidationFailed, NotFound>>, UpdateRouteHandler>();
+        services.AddScoped<ICommandHandler<DeleteRoute, OneOf<Success, NotFound>>, DeleteRouteHandler>();
+        services.AddScoped<IQueryHandler<GetRoutes, IReadOnlyList<RouteDto>>, GetRoutesHandler>();
+        services.AddScoped<IQueryHandler<GetRoute, OneOf<RouteDto, NotFound>>, GetRouteHandler>();
+
+        // Routes — validators
+        services.AddScoped<IValidator<AddRoute>, AddRouteValidator>();
+        services.AddScoped<IValidator<UpdateRoute>, UpdateRouteValidator>();
+
+        return services;
+    }
+}

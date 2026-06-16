@@ -67,17 +67,17 @@
     },
     {
       "id": 5,
-      "prompt": "Add integration tests for the DELETE /etappes/{id} endpoint.",
-      "expected_output": "Creates DeleteEtappeTests class with [Collection(nameof(HikingLogTier0Collection))] inheriting IntegrationTest(factory). Two tests: DeleteEtappe_WhenExists_Returns204 (seeds a route + etappe via POST, then DELETEs, asserts Status204NoContent) and DeleteEtappe_WhenNotFound_Returns404 (DELETEs /etappes/99999, asserts Status404NotFound). Uses EtappeFaker for seeding. No IAsyncLifetime re-implementation.",
+      "prompt": "Add integration tests for the DELETE /stages/{id} endpoint.",
+      "expected_output": "Creates DeleteStageTests class with [Collection(nameof(HikingLogTier0Collection))] inheriting IntegrationTest(factory). Two tests: DeleteStage_WhenExists_Returns204 (seeds a route + stage via POST, then DELETEs, asserts Status204NoContent) and DeleteStage_WhenNotFound_Returns404 (DELETEs /stages/99999, asserts Status404NotFound). Uses StageFaker for seeding. No IAsyncLifetime re-implementation.",
       "files": [],
       "assertions": [
-        "Creates DeleteEtappeTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
+        "Creates DeleteStageTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
         "Class inherits IntegrationTest(factory)",
-        "Has a test asserting Status204NoContent for deleting an existing etappe",
-        "The 204 test seeds a parent Route via POST before creating the Etappe (FK dependency)",
-        "The 204 test seeds an Etappe via POST before deleting it",
-        "Has a test asserting Status404NotFound for deleting a non-existent etappe",
-        "Uses EtappeFaker (or equivalent) for generating test data",
+        "Has a test asserting Status204NoContent for deleting an existing stage",
+        "The 204 test seeds a parent Route via POST before creating the Stage (FK dependency)",
+        "The 204 test seeds a Stage via POST before deleting it",
+        "Has a test asserting Status404NotFound for deleting a non-existent stage",
+        "Uses StageFaker (or equivalent) for generating test data",
         "Does not re-implement IAsyncLifetime"
       ]
     }
