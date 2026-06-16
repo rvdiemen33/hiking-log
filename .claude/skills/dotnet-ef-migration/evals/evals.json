@@ -1,0 +1,71 @@
+{
+  "skill_name": "dotnet-ef-migration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I added a property to the HikeLog entity. How do I create a migration?",
+      "expected_output": "Provides dotnet ef migrations add <Name> command with both --project src/HikingLog.Infrastructure and --startup-project src/HikingLog.Api flags on a single line. Mentions PascalCase naming convention with a descriptive name (e.g. AddWeatherToHikeLog). Notes that dotnet build should pass before adding the migration.",
+      "files": [],
+      "assertions": [
+        "Provides the dotnet ef migrations add command",
+        "Command includes --project src/HikingLog.Infrastructure",
+        "Command includes --startup-project src/HikingLog.Api",
+        "Mentions or demonstrates a PascalCase descriptive migration name",
+        "Mentions running dotnet build before adding the migration"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Update the database to the latest migration.",
+      "expected_output": "Provides dotnet ef database update with --project src/HikingLog.Infrastructure and --startup-project src/HikingLog.Api. Both flags present.",
+      "files": [],
+      "assertions": [
+        "Provides the dotnet ef database update command",
+        "Command includes --project src/HikingLog.Infrastructure",
+        "Command includes --startup-project src/HikingLog.Api"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Which EF commands do I need to run after modifying the DbContext?",
+      "expected_output": "Describes the full workflow: (1) dotnet build to verify compilation, (2) dotnet ef migrations add <Name> with both project flags, (3) review the generated Up() and Down() methods, (4) dotnet ef database update with both flags, (5) dotnet test to confirm nothing broke. All commands include --project and --startup-project.",
+      "files": [],
+      "assertions": [
+        "Mentions running dotnet build first",
+        "Provides dotnet ef migrations add with both --project and --startup-project flags",
+        "Mentions reviewing the generated Up() and/or Down() methods",
+        "Provides dotnet ef database update with both --project and --startup-project flags",
+        "Mentions running tests after applying the migration",
+        "All EF commands include both project flags"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I created a wrong migration that has not been applied yet. How do I remove it?",
+      "expected_output": "Provides dotnet ef migrations remove with --project src/HikingLog.Infrastructure and --startup-project src/HikingLog.Api. Includes explicit warning that this only works if the migration has NOT been applied to the database yet. If already applied, advises to add a new corrective migration instead.",
+      "files": [],
+      "assertions": [
+        "Provides the dotnet ef migrations remove command",
+        "Command includes --project src/HikingLog.Infrastructure",
+        "Command includes --startup-project src/HikingLog.Api",
+        "Explicitly warns that remove only works when the migration has not been applied",
+        "Mentions adding a new corrective migration as the alternative when already applied"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I extended the Route entity with a GPX field. What are the next steps?",
+      "expected_output": "Describes: (1) run dotnet build first, (2) dotnet ef migrations add AddGpxFieldToRoute (descriptive name) with both project flags, (3) open the generated migration file and review Up/Down, (4) dotnet ef database update with both flags, (5) run tests. Migration naming convention (PascalCase, descriptive) mentioned.",
+      "files": [],
+      "assertions": [
+        "Mentions running dotnet build before adding the migration",
+        "Provides dotnet ef migrations add with a descriptive PascalCase name (e.g. AddGpxFieldToRoute or similar)",
+        "Command includes --project src/HikingLog.Infrastructure",
+        "Command includes --startup-project src/HikingLog.Api",
+        "Mentions reviewing the generated migration file (Up/Down methods)",
+        "Provides dotnet ef database update with both project flags",
+        "Mentions running the build or tests after applying the migration"
+      ]
+    }
+  ]
+}

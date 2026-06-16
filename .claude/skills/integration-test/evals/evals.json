@@ -1,0 +1,85 @@
+{
+  "skill_name": "integration-test",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write integration tests for the POST /routes endpoint.",
+      "expected_output": "Creates PostRouteTests class with [Collection(nameof(HikingLogTier0Collection))] and primary constructor inheriting IntegrationTest(factory). Two tests: PostRoute_WhenValid_Returns201 (uses RouteFaker().Generate(), asserts Status201Created) and PostRoute_WhenInvalid_Returns400 (posts empty object, asserts Status400BadRequest). No IAsyncLifetime re-implementation. CreateClient() used for the HTTP client.",
+      "files": [],
+      "assertions": [
+        "Creates PostRouteTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
+        "Class inherits IntegrationTest(factory) via primary constructor",
+        "Has a test asserting Status201Created for a valid POST",
+        "Has a test asserting Status400BadRequest for an invalid POST (e.g. empty object)",
+        "Uses RouteFaker().Generate() for valid test data",
+        "Uses CreateClient() to obtain the HTTP client",
+        "Does not re-implement IAsyncLifetime or InitializeAsync",
+        "Does not use IMediator or inject handlers directly in the test class"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add a Tier 3 integration test to verify that AddRoute persists the route in the database.",
+      "expected_output": "Creates AddRouteHandlerTests class with [Collection(nameof(HikingLogTier0Collection))] inheriting IntegrationTest(factory). Test Handle_WhenValid_PersistsRoute uses factory.Services.CreateScope(), resolves ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>> via GetRequiredService, calls Handle() directly (no HTTP client). Asserts result.IsT0, then resolves HikingLogDbContext in the same scope and verifies the route exists with db.Routes.FindAsync().",
+      "files": [],
+      "assertions": [
+        "Creates AddRouteHandlerTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
+        "Class inherits IntegrationTest(factory)",
+        "Test uses factory.Services.CreateScope() to obtain a DI scope",
+        "Resolves ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>> via GetRequiredService",
+        "Calls handler.Handle() directly — no HTTP client used",
+        "Asserts result.IsT0 to verify the happy path",
+        "Resolves HikingLogDbContext from the same scope to verify database persistence",
+        "Calls db.Routes.FindAsync() or equivalent to assert the record was saved"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create a RouteFaker for use in the Routes integration tests.",
+      "expected_output": "Creates RouteFaker : Faker<CreateRouteRequest> with base(\"nl\") constructor for Dutch locale. RuleFor for all required properties: Name (f.Address.City() + \"pad\"), Code (\"LAW \" + random int), Country (fixed \"Nederland\"), TotalDistanceKm (random decimal 50–600), Description (f.Lorem.Sentence()). Class placed in tests/HikingLog.IntegrationTests/Routes/Fakers/RouteFaker.cs. XML doc <summary> on class and constructor.",
+      "files": [],
+      "assertions": [
+        "Creates RouteFaker class inheriting Faker<CreateRouteRequest>",
+        "Passes \"nl\" locale to the base constructor",
+        "Defines RuleFor for Name property",
+        "Defines RuleFor for Code property",
+        "Defines RuleFor for Country property (fixed or randomized)",
+        "Defines RuleFor for TotalDistanceKm with a positive decimal value",
+        "Defines RuleFor for Description property",
+        "File is placed under tests/HikingLog.IntegrationTests/",
+        "XML doc <summary> on the class and constructor"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Write all integration tests for the GET /routes and GET /routes/{id} endpoints.",
+      "expected_output": "Creates two test classes. GetRoutesTests: one test GetRoutes_Returns200 asserting Status200OK on GET /routes. GetRouteTests: two tests — GetRoute_WhenExists_Returns200 (seeds a route via POST first, then GETs the Location header) and GetRoute_WhenNotFound_Returns404 (GETs /routes/99999). Both classes have [Collection(nameof(HikingLogTier0Collection))] and inherit IntegrationTest(factory).",
+      "files": [],
+      "assertions": [
+        "Creates GetRoutesTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
+        "GetRoutesTests has a test asserting Status200OK for GET /routes",
+        "Creates GetRouteTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
+        "GetRouteTests has a test asserting Status200OK when the route exists",
+        "The 200 test seeds a route via POST before performing the GET (not a hardcoded id)",
+        "GetRouteTests has a test asserting Status404NotFound for a non-existent id",
+        "Both classes inherit IntegrationTest(factory)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Add integration tests for the DELETE /etappes/{id} endpoint.",
+      "expected_output": "Creates DeleteEtappeTests class with [Collection(nameof(HikingLogTier0Collection))] inheriting IntegrationTest(factory). Two tests: DeleteEtappe_WhenExists_Returns204 (seeds a route + etappe via POST, then DELETEs, asserts Status204NoContent) and DeleteEtappe_WhenNotFound_Returns404 (DELETEs /etappes/99999, asserts Status404NotFound). Uses EtappeFaker for seeding. No IAsyncLifetime re-implementation.",
+      "files": [],
+      "assertions": [
+        "Creates DeleteEtappeTests class with [Collection(nameof(HikingLogTier0Collection))] attribute",
+        "Class inherits IntegrationTest(factory)",
+        "Has a test asserting Status204NoContent for deleting an existing etappe",
+        "The 204 test seeds a parent Route via POST before creating the Etappe (FK dependency)",
+        "The 204 test seeds an Etappe via POST before deleting it",
+        "Has a test asserting Status404NotFound for deleting a non-existent etappe",
+        "Uses EtappeFaker (or equivalent) for generating test data",
+        "Does not re-implement IAsyncLifetime"
+      ]
+    }
+  ]
+}

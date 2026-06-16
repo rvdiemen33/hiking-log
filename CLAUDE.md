@@ -137,7 +137,7 @@ Application/
 
 See @.claude/integration-testing.md for the full conventions, structure, and code patterns.
 
-For EF Core migrations (add, apply, undo, list), use the `/dotnet-ef-migration` skill.
+For EF Core migrations (add, apply, undo, list), use the `dotnet-ef-migration` skill.
 
 ## HTTP status codes
 
@@ -145,6 +145,12 @@ For EF Core migrations (add, apply, undo, list), use the `/dotnet-ef-migration` 
 - 201 Created — successful POST (with `CreatedAtAction`)
 - 204 No Content — successful DELETE
 - 404 Not Found — resource does not exist
+
+## Skills
+
+- `dotnet-ef-migration` — EF Core migrations (add, apply, undo, list)
+- `vertical-slice` — implement a complete CRUD slice across all four layers (Application, Infrastructure, Api, DI)
+- `integration-test` — write Tier 0 (HTTP contract) and Tier 3 (handler + database) integration tests
 
 ## Functional plan
 

@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Claude Code skills workspaces and eval artifacts
+.claude/skills/*-workspace/
+.claude/skills/eval_results.json
+.claude/skills/build_benchmarks.py
+.claude/skills/fix_grading.py
