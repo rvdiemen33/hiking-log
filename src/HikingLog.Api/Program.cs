@@ -1,9 +1,12 @@
 using HikingLog.Application.Extensions;
 using HikingLog.Infrastructure.Data;
 using HikingLog.Infrastructure.Extensions;
+using HikingLog.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -16,6 +19,8 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+app.MapDefaultEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -34,7 +39,11 @@ if (app.Environment.IsDevelopment())
     await DataSeeder.SeedAsync(app.Services);
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.MapControllers();
 
 app.Run();
