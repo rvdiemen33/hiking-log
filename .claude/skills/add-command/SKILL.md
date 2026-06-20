@@ -16,7 +16,7 @@ Scaffolds exactly one command in `src/HikingLog.Application/<Feature>/Commands/<
 Each file contains the **record + validator + handler** together — no separate files per type.
 
 *Scope: one command only. A full feature also needs the entity, queries, an API endpoint, DI
-registration, a migration, and tests — run those skills in turn; the phase-2 slice-builder agent
+registration, a migration, and tests — run those skills in turn; the slice-builder agent
 orchestrates them.*
 
 ## Where things live (so this works without copying an existing slice)
@@ -26,7 +26,8 @@ orchestrates them.*
 - `HikingLog.Application.Data.Contracts` — `IHikingLogDataContext` (handlers inject this directly; no
   repository pattern).
 - `HikingLog.Domain.Entities` — entities. `HikingLog.Domain.Enums` — enums (e.g. `Difficulty`).
-- `OneOf` (NuGet) — `OneOf<...>` and `OneOf.Types.Success` (re-exported via `Common`).
+- `OneOf` (NuGet) — `OneOf<...>` only. `ValidationFailed`, `NotFound`, and `Success` are
+  project-defined types in `HikingLog.Application.Common`, not from the OneOf package.
 - File layout: `namespace X.Y;` first (file-scoped), then `using` directives. Full XML docs
   (`<summary>` on every type/member, `<param>` on record parameters).
 

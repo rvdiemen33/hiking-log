@@ -29,7 +29,7 @@ tests/HikingLog.IntegrationTests/
 - **HikingTestWebApplicationFactory** — starts a SQL Server via Testcontainers, overrides the DbContext registration, applies migrations, and initializes Respawn.
 - **Respawn** — resets the database between tests (truncate, no container restart).
 - **One container per xUnit collection** — shared via `ICollectionFixture<HikingTestWebApplicationFactory>`.
-- **One `IAsyncLifetime` per test class** — calls `ResetDatabaseAsync()` before each test.
+- **`IntegrationTest` base class implements `IAsyncLifetime`** — its `InitializeAsync()` calls `ResetDatabaseAsync()` before each test. Test classes inherit this; do not re-implement `IAsyncLifetime` in them.
 
 ## CollectionDefinitions
 
@@ -93,26 +93,36 @@ public class AddRouteHandlerTests(HikingTestWebApplicationFactory factory) : Int
     public async Task Handle_WhenValid_PersistsRoute()
     {
         using var scope = factory.Services.CreateScope();
-        // var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<AddRoute, ...>>();
-        // var result = await handler.Handle(new AddRoute(...), CancellationToken.None);
-        // var db = scope.ServiceProvider.GetRequiredService<HikingLogDbContext>();
-        // var route = await db.Routes.FindAsync(result.RouteId);
-        // Assert.NotNull(route);
+        var handler = scope.ServiceProvider
+            .GetRequiredService<ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>>>();
+
+        var result = await handler.Handle(new AddRoute("Noordzeepad", "LAW 1", "Nederland", 495m, null), CancellationToken.None);
+
+        Assert.True(result.IsT0);
+        var db = scope.ServiceProvider.GetRequiredService<HikingLogDbContext>();
+        var route = await db.Routes.FindAsync(result.AsT0.Id); // AddRouteResult exposes Id, not RouteId
+        Assert.NotNull(route);
     }
 }
 ```
 
 ## Fakers
 
-Use Bogus for test data. One faker per entity or request type, in a `Fakers/` folder next to the tests that use it.
+Use Bogus for test data. One faker per entity (named after the entity — `RouteFaker`, not `CreateRouteRequestFaker`), in a `Fakers/` folder next to the tests that use it.
+
+**Always use `CustomInstantiator` — never `RuleFor` — for the API request records.** They are positional records with no parameterless constructor; `Faker<T>` calls `Activator.CreateInstance<T>()` internally and throws `MissingMethodException` at runtime if you use `RuleFor`.
 
 ```csharp
 public class RouteFaker : Faker<CreateRouteRequest>
 {
-    public RouteFaker()
+    public RouteFaker() : base("nl")
     {
-        RuleFor(r => r.Name, f => f.Address.StreetName());
-        RuleFor(r => r.TotalDistanceKm, f => f.Random.Int(50, 500));
+        CustomInstantiator(f => new CreateRouteRequest(
+            f.Address.City() + "pad",
+            "LAW " + f.Random.Int(1, 20),
+            "Nederland",
+            f.Random.Decimal(50, 600),
+            f.Lorem.Sentence()));
     }
 }
 ```

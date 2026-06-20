@@ -17,8 +17,8 @@ Covers one entity end-to-end at the persistence level: the Domain class, its Flu
 configuration, and its `DbSet`. This is the foundation a feature's commands and queries build on.
 
 *Scope: the entity and its persistence only. A full feature also needs commands, queries, an API
-endpoint, DI registration, a migration, and tests — run those skills in turn; the phase-2
-slice-builder agent orchestrates them.*
+endpoint, DI registration, a migration, and tests — run those skills in turn; the slice-builder
+agent orchestrates them.*
 
 ## Where things live (so this works without copying an existing slice)
 
@@ -82,8 +82,8 @@ public class Route
     /// <summary>Gets or sets the optional description.</summary>
     public string? Description { get; set; }
 
-    /// <summary>Gets or sets the navigation to stages on this route.</summary>
-    public ICollection<Stage> Stages { get; set; } = [];
+    /// <summary>Gets the navigation to stages on this route.</summary>
+    public ICollection<Stage> Stages { get; init; } = [];
 }
 ```
 
@@ -108,11 +108,11 @@ public class Stage
 
     // ... Number, Name, StartPoint, EndPoint, DistanceKm, ElevationDifferenceM ...
 
-    /// <summary>Gets or sets the navigation to the parent route.</summary>
-    public Route Route { get; set; } = null!;
+    /// <summary>Gets the navigation to the parent route.</summary>
+    public Route Route { get; init; } = null!;
 
-    /// <summary>Gets or sets the navigation to hike logs for this stage.</summary>
-    public ICollection<HikeLog> HikeLogs { get; set; } = [];
+    /// <summary>Gets the navigation to hike logs for this stage.</summary>
+    public ICollection<HikeLog> HikeLogs { get; init; } = [];
 }
 ```
 
@@ -129,8 +129,8 @@ features' registrations.
 In `src/HikingLog.Infrastructure/Data/HikingLogDbContext.cs` (inside the `HikingLogDbContext` class):
 
 ```csharp
-/// <summary>Gets or sets the routes.</summary>
-public DbSet<Route> Routes { get; set; }
+/// <summary>Gets the routes.</summary>
+public DbSet<Route> Routes => Set<Route>();
 ```
 
 In `src/HikingLog.Application/Data/Contracts/IHikingLogDataContext.cs` (inside the interface):
@@ -171,7 +171,10 @@ internal sealed class RouteConfiguration : IEntityTypeConfiguration<Route>
 }
 ```
 
-A **child configuration** owns the FK relationship and converts the enum to a string column:
+Each relationship is configured **exactly once, on the parent (the "one") side** via
+`HasMany(...).WithOne(...).HasForeignKey(...)`. `StageConfiguration` therefore owns the
+Stage → HikeLog relationship (Stage is the parent of HikeLog) and converts the enum to a string column —
+it does **not** re-declare the Route → Stage relationship, which `RouteConfiguration` already owns above:
 
 ```csharp
 namespace HikingLog.Infrastructure.Data.Configurations;
@@ -188,14 +191,17 @@ internal sealed class StageConfiguration : IEntityTypeConfiguration<Stage>
     {
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Name).IsRequired().HasMaxLength(200);
+        builder.Property(s => s.StartPoint).IsRequired().HasMaxLength(200);
+        builder.Property(s => s.EndPoint).IsRequired().HasMaxLength(200);
         builder.Property(s => s.DistanceKm).HasPrecision(8, 2);
         builder.Property(s => s.ElevationDifferenceM).HasPrecision(8, 1);
         builder.Property(s => s.Difficulty).HasConversion<string>().HasMaxLength(20);
 
-        // FK is configured in the CHILD's configuration, not the parent's.
-        builder.HasOne(s => s.Route)
-               .WithMany(r => r.Stages)
-               .HasForeignKey(s => s.RouteId)
+        // Navigation: Stage (1) → HikeLog (n). Configured here on the parent side.
+        // The Route → Stage FK is owned by RouteConfiguration, not repeated here.
+        builder.HasMany(s => s.HikeLogs)
+               .WithOne(h => h.Stage)
+               .HasForeignKey(h => h.StageId)
                .OnDelete(DeleteBehavior.Cascade);
     }
 }
@@ -213,7 +219,8 @@ modelBuilder.ApplyConfiguration(new RouteConfiguration());
   distances, `HasPrecision(8, 1)` for elevation.
 - `HasConversion<string>()` for enum properties (stored as a string column).
 - Navigation properties in both directions; FK declared explicitly.
-- Define each FK relationship in the **child entity's** configuration, not the parent's.
+- Define each FK relationship in the **parent entity's** configuration via
+  `HasMany(...).WithOne(...).HasForeignKey(...)`, exactly once — the child configuration never repeats it.
 
 ## 4. Migration (required final step)
 

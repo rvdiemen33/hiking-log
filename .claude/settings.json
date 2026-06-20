@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet build --no-restore 2>&1 | tail -5"
+            "command": "dotnet build --no-restore 2>&1"
           }
         ]
       }
@@ -26,6 +26,7 @@
       "Bash(git add*)",
       "Bash(git commit*)",
       "Bash(git stash*)",
+      "Bash(git worktree*)",
       "Bash(git push*)",
       "Bash(dotnet ef migrations*)",
       "Bash(dotnet ef database*)"

@@ -6,7 +6,9 @@ description: >
   the user wants to add a migration after changing a domain entity, DbContext, or Fluent API
   configuration, when the database schema needs to be updated, when a migration must be undone,
   or when migration history needs to be inspected. Also activate when the user mentions EF,
-  dotnet ef commands, schema changes, or database updates.
+  dotnet ef commands, schema changes, or database updates. This skill only runs the `dotnet ef`
+  CLI — it does NOT write entity/DbContext/Fluent code (use domain-entity for that, then run this
+  to generate the migration). The slice-builder agent invokes this right after domain-entity.
 ---
 
 # EF Core Migrations — HikingLog

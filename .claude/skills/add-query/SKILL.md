@@ -17,7 +17,7 @@ Each file contains the **record + DTO + handler** together — no separate files
 never validate input with FluentValidation — they have no validator.
 
 *Scope: one query only. A full feature also needs the entity, commands, an API endpoint, DI
-registration, and tests — run those skills in turn; the phase-2 slice-builder agent orchestrates them.*
+registration, and tests — run those skills in turn; the slice-builder agent orchestrates them.*
 
 ## Where things live (so this works without copying an existing slice)
 

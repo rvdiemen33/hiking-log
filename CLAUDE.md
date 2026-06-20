@@ -3,17 +3,21 @@
 ## What is this project?
 
 REST API for tracking completed stages on long-distance hiking trails (LAW, Pieterpad, GR5).
-Built with **Clean Architecture + Vertical Slice Architecture** across four projects in a single .NET 10 solution.
+Built with **Clean Architecture + Vertical Slice Architecture** in a single .NET 10 solution: four
+architecture-layer projects (Domain → Application → Infrastructure → Api) plus two .NET Aspire support
+projects (AppHost, ServiceDefaults).
 
 Clean Architecture defines the layer boundary (Domain → Application → Infrastructure → Api) and ensures inner layers know nothing about outer layers. Vertical Slice Architecture determines the internal organization of `HikingLog.Application`: each feature (Route, Stage, HikeLog) is a standalone vertical slice with its own commands, queries, and validators. Slices share no logic with each other — shared contracts live in `Data/Contracts/`.
 
 ```
-HikingLog.sln
+HikingLog.slnx
 ├── src/
 │   ├── HikingLog.Domain          → Entities, enums, constants
 │   ├── HikingLog.Application     → Commands, queries, validators, IDataContext interface
 │   ├── HikingLog.Infrastructure  → DbContext, Fluent API configs, migrations, seed data
-│   └── HikingLog.Api             → Controllers, API models, Program.cs
+│   ├── HikingLog.Api             → Controllers, API models, Program.cs
+│   ├── HikingLog.AppHost         → .NET Aspire orchestration host
+│   └── HikingLog.ServiceDefaults → Shared Aspire service defaults (telemetry, health, resilience)
 └── tests/
     ├── HikingLog.Application.Tests
     ├── HikingLog.Api.Tests
@@ -37,7 +41,9 @@ dotnet test tests/HikingLog.Application.Tests
 dotnet test tests/HikingLog.Api.Tests
 ```
 
-Only deliver code when all four pass.
+Only deliver code when all four pass. Note: CI builds and tests in **Release**
+(`--configuration Release --no-build`); run the sequence with `--configuration Release` if you need to
+reproduce a Release-only failure locally.
 
 Integration tests require Docker (Testcontainers starts a SQL Server container):
 
@@ -69,7 +75,7 @@ dotnet user-secrets set "ConnectionStrings:HikingLog" "Server=localhost;Database
 - .NET 10 · ASP.NET Core Web API
 - Entity Framework Core 10 (Code First, SQL Server)
 - Custom CQRS interfaces — `ICommandHandler<TCommand, TResult>` and `IQueryHandler<TQuery, TResult>` defined in `HikingLog.Application`
-- Riok.Mapperly (source-gen mapping) or manual extension methods
+- Manual static extension methods for API model mapping (no AutoMapper, no source-gen mapper)
 - OneOf (discriminated unions for success/failure)
 - FluentValidation · Swashbuckle (Swagger UI)
 - xUnit · NSubstitute · Bogus (tests)
@@ -93,7 +99,7 @@ Application/
 │   │   ├── AddRoute.cs        ← record + validator + handler in one file
 │   │   └── UpdateRoute.cs
 │   └── Queries/
-│       ├── GetRoute.cs        ← record + validator + handler in one file
+│       ├── GetRoute.cs        ← record + DTO + handler in one file (queries have no validator)
 │       └── GetRoutes.cs
 ├── Stages/
 │   ├── Commands/
@@ -111,8 +117,8 @@ Application/
 ## Coding standards
 
 - File structure: namespace declaration first (file-scoped, no braces), then `using` directives — never the other way around.
-- Validators are `internal sealed class` in the same file as the command or query.
-- Use Riok.Mapperly or static extension methods for API model mapping — never AutoMapper.
+- Validators are `internal sealed class` in the same file as the command (commands only — queries have no validator).
+- Use static extension methods for API model mapping — never AutoMapper or a source-gen mapper.
 - Always use FluentValidation for input validation.
 - Use C# 13 features where applicable (primary constructors, collection expressions).
 - Add an XML doc comment to all type and member declarations: classes, records, enums, interfaces, and all methods (regardless of access modifier). Minimum a `<summary>`; add `<param>`, `<returns>`, and `<exception>` where relevant.
@@ -161,6 +167,18 @@ Build a full feature by composing several (typically `domain-entity` → `dotnet
 - `register-di` — register handlers and validators in `AddApplication()`
 - `dotnet-ef-migration` — EF Core migrations (add, apply, undo, list)
 - `integration-test` — write Tier 0 (HTTP contract) and Tier 3 (handler + database) integration tests
+
+## Agents
+
+Spawn via the Agent tool (`subagent_type`). Agents run in their own context window.
+
+- `slice-builder` — orchestrates the task-skills to build a whole feature end to end
+  (brief → `domain-entity` → `dotnet-ef-migration` → commands/queries → `api-endpoint` →
+  `register-di` → `integration-test` → verify → push). Use for a full slice; use the individual skills
+  for one layer.
+- `skill-reviewer` — read-only reviewer of the skills, agents, and instruction files (correctness vs
+  `src/`, skill/agent design, instruction consistency). Spawn after changing any `SKILL.md`, agent
+  definition file (`.claude/agents/*.md`), or instruction file.
 
 ## Pre-merge gate
 
