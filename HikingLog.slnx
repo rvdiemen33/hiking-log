@@ -11,9 +11,11 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/HikingLog.Api/HikingLog.Api.csproj" />
+    <Project Path="src/HikingLog.AppHost/HikingLog.AppHost.csproj" />
     <Project Path="src/HikingLog.Application/HikingLog.Application.csproj" />
     <Project Path="src/HikingLog.Domain/HikingLog.Domain.csproj" />
     <Project Path="src/HikingLog.Infrastructure/HikingLog.Infrastructure.csproj" />
+    <Project Path="src/HikingLog.ServiceDefaults/HikingLog.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HikingLog.Api.Tests/HikingLog.Api.Tests.csproj" />
