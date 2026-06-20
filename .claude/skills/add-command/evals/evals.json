@@ -1,0 +1,44 @@
+{
+  "skill_name": "add-command",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add an UpdateRoute command to the Routes feature.",
+      "expected_output": "Creates src/HikingLog.Application/Routes/Commands/UpdateRoute.cs containing the UpdateRoute record, an UpdateRouteValidator (internal sealed), and an UpdateRouteHandler with OneOf<UpdateRouteResult, ValidationFailed, NotFound>. Does not touch queries, controller, or DI beyond noting the register-di handoff.",
+      "files": [],
+      "assertions": [
+        "Creates a single file UpdateRoute.cs under Routes/Commands/",
+        "File contains the record, validator, and handler together",
+        "Handler return type is OneOf<UpdateRouteResult, ValidationFailed, NotFound>",
+        "Validator is internal sealed class deriving AbstractValidator<UpdateRoute>",
+        "Handler returns NotFound when the entity is missing",
+        "XML doc <summary> present on all types and members",
+        "Does NOT create a query, controller, or entity"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add a DeleteHikeLog command.",
+      "expected_output": "Creates DeleteHikeLog.cs with a DeleteHikeLog record and DeleteHikeLogHandler returning OneOf<Success, NotFound>. No validator is created (Delete has nothing to validate).",
+      "files": [],
+      "assertions": [
+        "Handler return type is OneOf<Success, NotFound>",
+        "No validator class is created for the delete command",
+        "Handler returns NotFound when the entity does not exist and Success after removal",
+        "Single file under HikeLogs/Commands/"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add an AddStage command. A Stage belongs to a Route.",
+      "expected_output": "Creates AddStage.cs with the AddStage record (including RouteId), AddStageValidator, and AddStageHandler returning OneOf<AddStageResult, ValidationFailed, NotFound> because the parent Route must exist. Handler checks the Route exists before adding.",
+      "files": [],
+      "assertions": [
+        "Handler return type includes NotFound because Stage is a child of Route",
+        "Handler checks the parent Route exists before persisting",
+        "AddStage record includes the RouteId foreign key",
+        "Validator and handler are in one file under Stages/Commands/"
+      ]
+    }
+  ]
+}

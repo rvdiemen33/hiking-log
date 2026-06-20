@@ -1,0 +1,35 @@
+{
+  "skill_name": "api-endpoint",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create the StagesController with all endpoints.",
+      "expected_output": "Creates StagesController inheriting ControllerBase, using a primary constructor that injects ICommandHandler and IQueryHandler for all operations — no IMediator. Includes GetAll, GetById, Create, Update, Delete. POST uses CreatedAtAction (201), DELETE NoContent (204), validation failures ValidationProblem (400), missing resource NotFound (404). All actions carry ProducesResponseType.",
+      "files": [],
+      "assertions": [
+        "Controller uses a primary constructor with ICommandHandler/IQueryHandler parameters — no IMediator",
+        "Includes GetAll, GetById, Create, Update, Delete actions",
+        "POST action uses CreatedAtAction and ProducesResponseType(201)",
+        "DELETE action returns NoContent() with ProducesResponseType(204)",
+        "Validation failures use ValidationProblem() — not BadRequest()",
+        "GET single, PUT, DELETE declare ProducesResponseType(404)",
+        "All action methods return Task<IActionResult>",
+        "Does NOT create handlers, entity, or DI registration"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add request/response models and mapping extensions for the Routes API.",
+      "expected_output": "Creates Models.cs under src/HikingLog.Api/Routes/ with CreateRouteRequest, UpdateRouteRequest (no Id), RouteResponse. Creates MappingExtensions.cs with ToCommand() on CreateRouteRequest, ToCommand(int id) on UpdateRouteRequest, ToResponse() on RouteDto. All internal static with XML docs.",
+      "files": [],
+      "assertions": [
+        "CreateRouteRequest record has the create fields",
+        "UpdateRouteRequest record has no Id property (id comes from the route segment)",
+        "RouteResponse record includes Id",
+        "ToCommand(int id) on UpdateRouteRequest passes id as the first argument to UpdateRoute",
+        "Mapping extensions are internal static methods",
+        "XML doc <summary> on all types and methods"
+      ]
+    }
+  ]
+}

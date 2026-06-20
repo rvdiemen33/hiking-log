@@ -66,21 +66,24 @@ public class PostRouteTests(HikingTestWebApplicationFactory factory) : Integrati
 }
 ```
 
-Common status codes per HTTP verb:
+Common status codes per HTTP verb (today; authentication is out of scope per the functional-plan, so
+the API returns no 401/403 yet):
 
 | Verb | Required covered |
 |------|-----------------|
-| GET collection | 200, 403 |
-| GET single | 200, 403, 404 |
-| POST | 201, 400, 403 |
-| PUT | 200, 400, 403, 404 |
-| DELETE | 204, 403, 404 |
+| GET collection | 200 |
+| GET single | 200, 404 |
+| POST | 201, 400 |
+| PUT | 200, 400, 404 |
+| DELETE | 204, 404 |
 
-401 scenarios (no token, invalid token, expired token) are tested once in a separate `Authentication` class — not repeated per endpoint.
+**When JWT auth is added** (out of scope for now): also cover 403 per verb, and 401 (no/invalid/expired
+token) once in a separate `Authentication` class — not repeated per endpoint. Until then, do not write
+401/403 tests; they cannot pass against an unauthenticated API.
 
 ## Tier 3 — Handler with database
 
-Calls the handler directly via `IMediator` or the handler itself, without HTTP. Verify database mutations via the DbContext.
+Calls the handler directly — resolve it from DI by its `ICommandHandler<,>` / `IQueryHandler<,>` interface (this project has no IMediator) — without HTTP. Verify database mutations via the DbContext.
 
 ```csharp
 [Collection(nameof(HikingLogTier0Collection))]

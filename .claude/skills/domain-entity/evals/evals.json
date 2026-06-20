@@ -1,0 +1,35 @@
+{
+  "skill_name": "domain-entity",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add the Route entity with its DbContext mapping.",
+      "expected_output": "Creates Route in src/HikingLog.Domain/Entities/ with navigation to Stages. Adds DbSet<Route> to both HikingLogDbContext and IHikingLogDataContext. Creates RouteConfiguration implementing IEntityTypeConfiguration<Route>, registered via ApplyConfiguration in OnModelCreating. Notes the dotnet-ef-migration handoff.",
+      "files": [],
+      "assertions": [
+        "Creates Route entity class in src/HikingLog.Domain/Entities/",
+        "Declares navigation property to Stages on the entity",
+        "Adds DbSet<Route> to HikingLogDbContext",
+        "Adds DbSet<Route> to IHikingLogDataContext interface",
+        "Creates RouteConfiguration implementing IEntityTypeConfiguration<Route>",
+        "Registers the configuration via ApplyConfiguration in OnModelCreating",
+        "Uses HasMaxLength on string columns and decimal(10,2) on decimal columns",
+        "Mentions running the dotnet-ef-migration skill",
+        "XML doc <summary> on all types and members",
+        "Does NOT create commands, queries, or a controller"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add the HikeLog entity. A HikeLog belongs to a Stage and has a Difficulty-free rating 1-5.",
+      "expected_output": "Creates HikeLog entity with StageId FK and Stage navigation. Adds DbSet to context and interface. HikeLogConfiguration defines the FK to Stage (child owns the relationship). Notes migration handoff.",
+      "files": [],
+      "assertions": [
+        "HikeLog entity has StageId foreign key and Stage navigation property",
+        "HikeLogConfiguration defines HasOne(h => h.Stage).WithMany(...) — FK configured in the child's configuration",
+        "DbSet<HikeLog> added to both HikingLogDbContext and IHikingLogDataContext",
+        "Mentions running the dotnet-ef-migration skill"
+      ]
+    }
+  ]
+}

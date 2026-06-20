@@ -5,7 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    var xmlFilename = $"{typeof(Program).Assembly.GetName().Name}.xml";
+    c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+});
 builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -20,7 +25,12 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.DocumentTitle = "HikingLog API Documentation";
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "HikingLog API v1");
+    });
     await DataSeeder.SeedAsync(app.Services);
 }
 
