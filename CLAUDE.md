@@ -22,7 +22,7 @@ HikingLog.sln
 
 ## Branch workflow
 
-- Never work directly on `main` — always create a feature branch before starting.
+- Never work directly on `master` — always create a feature branch before starting.
 - Naming convention: `feature/<short-description>` (e.g. `feature/add-stage-query`).
 - For larger or parallel tasks: use `git worktree` so branches can be built and tested in isolation.
 
@@ -71,7 +71,7 @@ dotnet user-secrets set "ConnectionStrings:HikingLog" "Server=localhost;Database
 - Custom CQRS interfaces — `ICommandHandler<TCommand, TResult>` and `IQueryHandler<TQuery, TResult>` defined in `HikingLog.Application`
 - Riok.Mapperly (source-gen mapping) or manual extension methods
 - OneOf (discriminated unions for success/failure)
-- FluentValidation · Swagger / Scalar
+- FluentValidation · Swashbuckle (Swagger UI)
 - xUnit · NSubstitute · Bogus (tests)
 
 ## Architecture rules
@@ -124,8 +124,10 @@ Application/
 
 ### OneOf patterns
 
-- Queries that may return nothing: `OneOf<TResult, NotFound>`
-- Commands that fail due to validation or missing resource: `OneOf<TResult, ValidationFailed, NotFound>`
+- Add (top-level entity): `OneOf<TResult, ValidationFailed>` — no `NotFound`
+- Add (child with parent FK) and Update: `OneOf<TResult, ValidationFailed, NotFound>`
+- Delete: `OneOf<Success, NotFound>` — no validator
+- Get single: `OneOf<TResult, NotFound>`; Get collection: `IReadOnlyList<TDto>` (never fails)
 - Never use exceptions for expected error paths — always use OneOf.
 
 ## Test conventions
@@ -138,20 +140,34 @@ Application/
 
 See @.claude/integration-testing.md for the full conventions, structure, and code patterns.
 
-For EF Core migrations (add, apply, undo, list), use the `dotnet-ef-migration` skill.
-
 ## HTTP status codes
 
 - 200 OK — successful GET, PUT
 - 201 Created — successful POST (with `CreatedAtAction`)
 - 204 No Content — successful DELETE
+- 400 Bad Request — validation failure (via `ValidationProblem`)
 - 404 Not Found — resource does not exist
 
 ## Skills
 
+Each skill has a single responsibility; the session loads only the one(s) a request needs.
+Build a full feature by composing several (typically `domain-entity` → `dotnet-ef-migration` →
+`add-command`/`add-query` → `api-endpoint` → `register-di` → `integration-test`).
+
+- `domain-entity` — entity in Domain + Fluent API config + DbSet on context and interface
+- `add-command` — one CQRS command (record + validator + handler) in `Application/<Feature>/Commands/`
+- `add-query` — one CQRS query (record + DTO + handler) in `Application/<Feature>/Queries/`
+- `api-endpoint` — controller + request/response models + mapping in `Api/<Feature>/`
+- `register-di` — register handlers and validators in `AddApplication()`
 - `dotnet-ef-migration` — EF Core migrations (add, apply, undo, list)
-- `vertical-slice` — implement a complete CRUD slice across all four layers (Application, Infrastructure, Api, DI)
 - `integration-test` — write Tier 0 (HTTP contract) and Tier 3 (handler + database) integration tests
+
+## Pre-merge gate
+
+CI (`.github/workflows/ci.yml`) builds, runs the format check, and runs the unit and integration test
+suites on every push and PR. The intended hard, unbypassable gate is a GitHub branch-protection
+required status check on `master` (future action) — that is the authoritative enforcement. Run the
+local verification sequence (see **Verification**) before opening a PR.
 
 ## Functional plan
 

@@ -1,0 +1,33 @@
+{
+  "skill_name": "register-di",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Register the HikeLog handlers and validators in the DI container.",
+      "expected_output": "Adds AddScoped registrations for AddHikeLog, UpdateHikeLog, DeleteHikeLog, GetHikeLog, GetHikeLogs to AddApplication() in ServiceCollectionExtensions.cs with full generic signatures, plus IValidator<AddHikeLog> and IValidator<UpdateHikeLog>. Does not create handlers themselves.",
+      "files": [],
+      "assertions": [
+        "Adds ICommandHandler registration for AddHikeLog with full generic signature",
+        "Adds ICommandHandler registration for UpdateHikeLog with full generic signature",
+        "Adds ICommandHandler registration for DeleteHikeLog with OneOf<Success, NotFound>",
+        "Adds IQueryHandler registration for GetHikeLog with OneOf<HikeLogDto, NotFound>",
+        "Adds IQueryHandler registration for GetHikeLogs with IReadOnlyList<HikeLogDto>",
+        "Registers IValidator<AddHikeLog> and IValidator<UpdateHikeLog> but not one for Delete",
+        "Registrations are inside AddApplication(), not in Program.cs",
+        "Uses AddScoped — not AddTransient or AddSingleton",
+        "Does NOT create the handler or validator implementations"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Wire up the Stage command and query handlers in DI.",
+      "expected_output": "Adds the five Stage handler registrations and the Add/Update validators to the existing AddApplication() method, matching the OneOf signatures the StagesController injects. No duplicate AddApplication method.",
+      "files": [],
+      "assertions": [
+        "Adds the new lines to the existing AddApplication() method rather than creating a second method",
+        "Handler signatures match what the controller injects",
+        "Delete handler registered with OneOf<Success, NotFound> and no validator"
+      ]
+    }
+  ]
+}

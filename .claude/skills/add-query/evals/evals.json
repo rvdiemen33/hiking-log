@@ -1,0 +1,41 @@
+{
+  "skill_name": "add-query",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add a GetRoutes query that returns all routes.",
+      "expected_output": "Creates src/HikingLog.Application/Routes/Queries/GetRoutes.cs with a GetRoutes record, a RouteDto record, and a GetRoutesHandler returning IReadOnlyList<RouteDto>. No validator, no command.",
+      "files": [],
+      "assertions": [
+        "Creates a single file GetRoutes.cs under Routes/Queries/",
+        "Handler return type is IReadOnlyList<RouteDto>",
+        "No FluentValidation validator is created",
+        "Uses a projection (.Select) into the DTO before ToListAsync",
+        "XML doc <summary> present on all types and members",
+        "Does NOT create a command, controller, or entity"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add a GetStage query that returns a single stage by id.",
+      "expected_output": "Creates GetStage.cs with a GetStage(int Id) record and a GetStageHandler returning OneOf<StageDto, NotFound>. Handler returns NotFound when the stage does not exist.",
+      "files": [],
+      "assertions": [
+        "Handler return type is OneOf<StageDto, NotFound>",
+        "Handler returns NotFound for a missing id",
+        "Single file under Stages/Queries/"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add a GetHikeLogs query that supports an optional year filter.",
+      "expected_output": "Creates GetHikeLogs.cs with a GetHikeLogs(int? Year) record and a handler returning IReadOnlyList<HikeLogDto> that filters by DateHiked.Year only when Year is provided.",
+      "files": [],
+      "assertions": [
+        "Query record carries a nullable Year filter parameter",
+        "Handler applies the year filter conditionally (no filter when null)",
+        "Return type is IReadOnlyList<HikeLogDto>"
+      ]
+    }
+  ]
+}
