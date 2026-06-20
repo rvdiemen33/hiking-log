@@ -17,7 +17,7 @@ Registers handlers and validators manually (no assembly scanning) in
 each handler must match exactly what the controller injects, or resolution fails at startup.
 
 *Scope: DI registration only. A full feature also needs the entity, commands, queries, an API
-endpoint, a migration, and tests — run those skills in turn; the phase-2 slice-builder agent
+endpoint, a migration, and tests — run those skills in turn; the slice-builder agent
 orchestrates them.*
 
 ## Where things live (so this works without copying an existing slice)

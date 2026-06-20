@@ -17,7 +17,7 @@ Adds the HTTP surface for a feature: models, mapping, and a controller that inje
 
 *Scope: the API layer only. The command/query handlers must already exist (via add-command /
 add-query), and must be registered with register-di; a full feature runs several skills in sequence,
-which the phase-2 slice-builder agent orchestrates.*
+which the slice-builder agent orchestrates.*
 
 ## Where things live (so this works without copying an existing slice)
 
@@ -288,7 +288,10 @@ internal static class ValidationFailedExtensions
     {
         var modelState = new ModelStateDictionary();
         foreach (var error in failed.Errors)
+        {
             modelState.AddModelError(error.PropertyName, error.ErrorMessage);
+        }
+
         return modelState;
     }
 }
