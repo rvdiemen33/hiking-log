@@ -130,10 +130,12 @@ public sealed class GetHikeLogsHandler(IHikingLogDataContext db)
 }
 ```
 
-A "by parent" collection (e.g. `GetStages(int RouteId)`) follows the same shape: carry the parent id
-on the record and `.Where(s => s.RouteId == query.RouteId)`. It does **not** check that the parent
-exists — a collection returns `IReadOnlyList<TDto>`, so a missing parent yields an empty list (HTTP
-200), never `NotFound`. If a 404 on a missing parent is genuinely required, use the single-item query
+A "by parent" collection (e.g. `GetStagesByRoute(int RouteId)`) follows the same shape: carry the
+parent id on the record and `.Where(s => s.RouteId == query.RouteId)`. If the entity has a natural
+sequence field (e.g. `Stage.Number`), add `.OrderBy(...)` — collection order is otherwise unspecified
+and the database may return rows in any order. It does **not** check that the parent exists — a
+collection returns `IReadOnlyList<TDto>`, so a missing parent yields an empty list (HTTP 200), never
+`NotFound`. If a 404 on a missing parent is genuinely required, use the single-item query
 (`OneOf<TDto, NotFound>`) or a command instead.
 
 ## Example — Get single (GET by id)
@@ -167,8 +169,10 @@ public sealed class GetRouteHandler(IHikingLogDataContext db)
 ```
 
 Reuse the same `<Entity>Dto` record across a feature's single and collection queries — declare it once
-(typically in the collection query file) and reference it from the others. A DTO carrying an enum
-(e.g. `StageDto` with `Difficulty`) needs `using HikingLog.Domain.Enums;`.
+in whichever query file you scaffold first for that feature, and reference it from the others (Routes
+declares `RouteDto` in the collection file; Stages declares `StageDto` in the single-item file — either
+is fine, just never declare it twice). A DTO carrying an enum (e.g. `StageDto` with `Difficulty`) needs
+`using HikingLog.Domain.Enums;`.
 
 ## Aggregate / computed queries
 
@@ -179,6 +183,15 @@ values with `Count`/`Sum`/`Max` over joins instead of `Select`-projecting one en
 - `/routes/{id}/progress` is keyed on a route, so it can miss → `OneOf<ProgressDto, NotFound>` (verify
   the route exists first).
 - `/statistics` aggregates everything and always returns one DTO → no `OneOf`, no `NotFound`.
+
+## Unit-test mockability (ToListAsync vs FindAsync)
+
+Collection handlers use EF Core's `ToListAsync`, which requires an `IAsyncQueryProvider` and therefore
+**cannot** be exercised against a plain NSubstitute `DbSet<T>` mock (it throws at runtime). Do not write
+a behavioural unit test for a collection handler — keep a placeholder unit test that asserts the handler
+constructs, and cover the real filtering/ordering/projection with a Tier 0 endpoint test (and/or a Tier 3
+handler test) via the **integration-test** skill. Single-item handlers use `FindAsync` (a `DbSet` method),
+which IS mockable with NSubstitute — unit-test those normally.
 
 ## After scaffolding
 

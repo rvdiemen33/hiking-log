@@ -4,6 +4,8 @@ using FluentValidation;
 using HikingLog.Application.Common;
 using HikingLog.Application.Routes.Commands;
 using HikingLog.Application.Routes.Queries;
+using HikingLog.Application.Stages.Commands;
+using HikingLog.Application.Stages.Queries;
 using Microsoft.Extensions.DependencyInjection;
 using OneOf;
 
@@ -25,6 +27,17 @@ public static class ServiceCollectionExtensions
         // Routes — validators
         services.AddScoped<IValidator<AddRoute>, AddRouteValidator>();
         services.AddScoped<IValidator<UpdateRoute>, UpdateRouteValidator>();
+
+        // Stages — handlers (child of Route: AddStage carries NotFound)
+        services.AddScoped<ICommandHandler<AddStage, OneOf<AddStageResult, ValidationFailed, NotFound>>, AddStageHandler>();
+        services.AddScoped<ICommandHandler<UpdateStage, OneOf<UpdateStageResult, ValidationFailed, NotFound>>, UpdateStageHandler>();
+        services.AddScoped<ICommandHandler<DeleteStage, OneOf<Success, NotFound>>, DeleteStageHandler>();
+        services.AddScoped<IQueryHandler<GetStagesByRoute, IReadOnlyList<StageDto>>, GetStagesByRouteHandler>();
+        services.AddScoped<IQueryHandler<GetStage, OneOf<StageDto, NotFound>>, GetStageHandler>();
+
+        // Stages — validators
+        services.AddScoped<IValidator<AddStage>, AddStageValidator>();
+        services.AddScoped<IValidator<UpdateStage>, UpdateStageValidator>();
 
         return services;
     }
