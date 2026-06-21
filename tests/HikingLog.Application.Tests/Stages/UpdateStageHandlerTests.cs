@@ -57,6 +57,31 @@ public class UpdateStageHandlerTests
         await _db.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>When the stage exists but the referenced parent route does not, the handler returns NotFound without saving.</summary>
+    [Fact]
+    public async Task Handle_WhenRouteNotFound_ReturnsNotFound()
+    {
+        var command = new UpdateStage(1, 99, 1, "Etappe 1", "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy);
+        _validator
+            .ValidateAsync(command, Arg.Any<CancellationToken>())
+            .Returns(new ValidationResult());
+
+        var stages = Substitute.For<DbSet<Stage>>();
+        stages.FindAsync(Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
+              .Returns(new ValueTask<Stage?>(new Stage { Id = 1, RouteId = 1, Number = 1, Name = "Oud", StartPoint = "A", EndPoint = "B", DistanceKm = 10m, ElevationDifferenceM = 50m, Difficulty = Difficulty.Easy }));
+        _db.Stages.Returns(stages);
+
+        var routes = Substitute.For<DbSet<Route>>();
+        routes.FindAsync(Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
+              .Returns(new ValueTask<Route?>((Route?)null));
+        _db.Routes.Returns(routes);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsT2);
+        await _db.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     /// <summary>When the command is valid and the stage exists the handler updates and returns UpdateStageResult.</summary>
     [Fact]
     public async Task Handle_WhenValid_UpdatesStageAndReturnsResult()
@@ -82,6 +107,12 @@ public class UpdateStageHandlerTests
         stages.FindAsync(Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
               .Returns(new ValueTask<Stage?>(existingStage));
         _db.Stages.Returns(stages);
+
+        var routes = Substitute.For<DbSet<Route>>();
+        routes.FindAsync(Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
+              .Returns(new ValueTask<Route?>(new Route { Id = 1, Name = "R", Code = "R1", Country = "NL", TotalDistanceKm = 1m }));
+        _db.Routes.Returns(routes);
+
         _db.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
 
         var result = await _handler.Handle(command, CancellationToken.None);

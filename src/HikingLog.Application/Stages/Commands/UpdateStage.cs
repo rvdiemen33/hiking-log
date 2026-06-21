@@ -59,6 +59,13 @@ public sealed class UpdateStageHandler(IHikingLogDataContext db, IValidator<Upda
             return new NotFound();
         }
 
+        // Business rule: when reparenting, the referenced route must exist.
+        var parentRoute = await db.Routes.FindAsync([command.RouteId], ct);
+        if (parentRoute is null)
+        {
+            return new NotFound();
+        }
+
         stage.RouteId = command.RouteId;
         stage.Number = command.Number;
         stage.Name = command.Name;

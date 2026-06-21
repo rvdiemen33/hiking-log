@@ -50,4 +50,20 @@ public class PutStageTests(HikingTestWebApplicationFactory factory) : Integratio
         HttpResponseMessage response = await client.PutAsJsonAsync("/stages/99999", new StageFaker(routeId).Generate());
         Assert.Equal(StatusCodes.Status404NotFound, (int)response.StatusCode);
     }
+
+    /// <summary>PUT /stages/{id} returns 404 Not Found when the referenced parent route does not exist.</summary>
+    [Fact]
+    public async Task PutStage_WhenRouteNotFound_Returns404()
+    {
+        HttpClient client = CreateClient();
+        HttpResponseMessage routeResponse = await client.PostAsJsonAsync("/routes", new RouteFaker().Generate());
+        int routeId = (await routeResponse.Content.ReadFromJsonAsync<RouteResponse>())!.Id;
+
+        HttpResponseMessage created = await client.PostAsJsonAsync("/stages", new StageFaker(routeId).Generate());
+        int id = (await created.Content.ReadFromJsonAsync<StageResponse>())!.Id;
+
+        // Reparent the existing stage to a route that does not exist.
+        HttpResponseMessage response = await client.PutAsJsonAsync($"/stages/{id}", new StageFaker(99999).Generate());
+        Assert.Equal(StatusCodes.Status404NotFound, (int)response.StatusCode);
+    }
 }

@@ -18,8 +18,8 @@ public class GetStagesByRouteHandlerTests
 
     // GetStagesByRouteHandler uses EF Core's ToListAsync extension, which requires a full async
     // queryable provider that NSubstitute cannot supply without additional infrastructure.
-    // The handler's database interaction is covered by the Tier 3 integration test
-    // (AddStageHandlerTests) and the Tier 0 endpoint tests (GetStagesByRouteTests).
+    // The handler's filtering and ordering behaviour is covered by the Tier 0 endpoint test
+    // GetStagesByRouteTests.GetStagesByRoute_ReturnsOnlyMatchingStages_OrderedByNumber.
     // A placeholder fact is kept here so the test class compiles and is discoverable.
 
     /// <summary>Placeholder — collection query handlers that use ToListAsync are covered by integration tests.</summary>

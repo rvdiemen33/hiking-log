@@ -16,6 +16,7 @@ public sealed class GetStagesByRouteHandler(IHikingLogDataContext db)
     public async Task<IReadOnlyList<StageDto>> Handle(GetStagesByRoute query, CancellationToken ct)
         => await db.Stages
             .Where(s => s.RouteId == query.RouteId)
+            .OrderBy(s => s.Number)
             .Select(s => new StageDto(s.Id, s.RouteId, s.Number, s.Name, s.StartPoint, s.EndPoint,
                 s.DistanceKm, s.ElevationDifferenceM, s.Difficulty))
             .ToListAsync(ct);
