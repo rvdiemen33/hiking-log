@@ -242,7 +242,7 @@ using OneOf;
 /// <summary>Controller for managing stages.</summary>
 [ApiController]
 public sealed class StagesController(
-    IQueryHandler<GetStages, IReadOnlyList<StageDto>> getStagesHandler,
+    IQueryHandler<GetStagesByRoute, IReadOnlyList<StageDto>> getStagesByRouteHandler,
     IQueryHandler<GetStage, OneOf<StageDto, NotFound>> getStageHandler /* + command handlers */) : ControllerBase
 {
     /// <summary>Gets all stages for a route.</summary>
@@ -250,7 +250,7 @@ public sealed class StagesController(
     [ProducesResponseType<IReadOnlyList<StageResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(int routeId, CancellationToken ct)
     {
-        var result = await getStagesHandler.Handle(new GetStages(routeId), ct);
+        var result = await getStagesByRouteHandler.Handle(new GetStagesByRoute(routeId), ct);
         return Ok(result.Select(s => s.ToResponse()));
     }
 

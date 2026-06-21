@@ -104,7 +104,7 @@ labelled block (only if these handlers exist), e.g. for Stages:
 ```csharp
 // Stages — handlers (child of Route: AddStage carries NotFound)
 services.AddScoped<ICommandHandler<AddStage, OneOf<AddStageResult, ValidationFailed, NotFound>>, AddStageHandler>();
-// ... Update/Delete/GetStages/GetStage as above ...
+// ... Update/Delete/GetStagesByRoute/GetStage as above ...
 
 // Stages — validators
 services.AddScoped<IValidator<AddStage>, AddStageValidator>();

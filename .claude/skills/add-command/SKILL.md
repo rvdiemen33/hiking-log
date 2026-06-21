@@ -143,7 +143,6 @@ using HikingLog.Application.Common;
 using HikingLog.Application.Data.Contracts;
 using HikingLog.Domain.Entities;             // Stage
 using HikingLog.Domain.Enums;                // Difficulty
-using Microsoft.EntityFrameworkCore;         // AnyAsync
 using OneOf;
 
 /// <summary>Command to create a new stage on an existing route.</summary>
@@ -158,14 +157,14 @@ using OneOf;
 public record AddStage(int RouteId, int Number, string Name, string StartPoint, string EndPoint,
     decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty);
 
-/// <summary>Result returned after a stage is created.</summary>
-/// <param name="Id">The primary key of the new stage.</param>
+/// <summary>Result returned after a stage is successfully created.</summary>
+/// <param name="Id">The primary key of the newly created stage.</param>
 public record AddStageResult(int Id);
 
 /// <summary>Validates the <see cref="AddStage"/> command.</summary>
 internal sealed class AddStageValidator : AbstractValidator<AddStage>
 {
-    /// <summary>Initializes a new instance of <see cref="AddStageValidator"/>.</summary>
+    /// <summary>Initializes a new instance of <see cref="AddStageValidator"/> with all rules.</summary>
     public AddStageValidator()
     {
         RuleFor(x => x.RouteId).GreaterThan(0);
@@ -179,7 +178,7 @@ internal sealed class AddStageValidator : AbstractValidator<AddStage>
     }
 }
 
-/// <summary>Handles the <see cref="AddStage"/> command.</summary>
+/// <summary>Handles the <see cref="AddStage"/> command by persisting a new stage entity.</summary>
 public sealed class AddStageHandler(IHikingLogDataContext db, IValidator<AddStage> validator)
     : ICommandHandler<AddStage, OneOf<AddStageResult, ValidationFailed, NotFound>>
 {
@@ -193,8 +192,8 @@ public sealed class AddStageHandler(IHikingLogDataContext db, IValidator<AddStag
         }
 
         // Business rule: the referenced route must exist before a stage can be added to it.
-        var parentExists = await db.Routes.AnyAsync(r => r.Id == command.RouteId, ct);
-        if (!parentExists)
+        var parentRoute = await db.Routes.FindAsync([command.RouteId], ct);
+        if (parentRoute is null)
         {
             return new NotFound();
         }
@@ -219,6 +218,12 @@ public sealed class AddStageHandler(IHikingLogDataContext db, IValidator<AddStag
 
 For `AddHikeLog`, apply the same shape: check `StageId` exists, and enforce business rules such as
 `RuleFor(x => x.Rating).InclusiveBetween(1, 5)`.
+
+**Use `FindAsync` for the parent-existence check, not the `AnyAsync` LINQ operator.** `FindAsync` is a
+`DbSet` method that NSubstitute can mock directly in unit tests; `AnyAsync` needs an
+`IAsyncQueryProvider` and throws against a substituted `DbSet`, making the handler impossible to
+unit-test. This also mirrors the Update/Delete existence checks. (Same rule applies anywhere a handler
+checks existence — Update and Delete already use `FindAsync`.)
 
 ## Example — Update (PUT)
 
