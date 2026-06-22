@@ -167,6 +167,13 @@ Build a full feature by composing several (typically `domain-entity` → `dotnet
 - `register-di` — register handlers and validators in `AddApplication()`
 - `dotnet-ef-migration` — EF Core migrations (add, apply, undo, list)
 - `integration-test` — write Tier 0 (HTTP contract) and Tier 3 (handler + database) integration tests
+- `ship-slice` — composer skill that delivers a feature end to end **with the quality gate**: spawns
+  `slice-builder` (build only, no commit) → reviews the uncommitted working-tree diff with `code-review`
+  (apply confirmed fixes, re-verify) → conditional `skill-reviewer` (only if a skill/instruction file
+  changed) → completeness check vs `functional-plan.md` → commits the reviewed slice → docs sync →
+  reports the ready-to-run `gh pr create`. Runs at the main-loop level because a subagent cannot spawn
+  agents. Use for "build, review and ship X"; use `slice-builder` for a plain build, or a single
+  task-skill for one layer.
 
 ## Agents
 
@@ -175,7 +182,9 @@ Spawn via the Agent tool (`subagent_type`). Agents run in their own context wind
 - `slice-builder` — orchestrates the task-skills to build a whole feature end to end
   (brief → `domain-entity` → `dotnet-ef-migration` → commands/queries → `api-endpoint` →
   `register-di` → `integration-test` → verify → push). Use for a full slice; use the individual skills
-  for one layer.
+  for one layer. When wrapped by the `ship-slice` skill it runs in **composed mode** — build and verify
+  only, leaving changes uncommitted so `ship-slice` can review before committing (it takes over the
+  commit/push).
 - `skill-reviewer` — read-only reviewer of the skills, agents, and instruction files (correctness vs
   `src/`, skill/agent design, instruction consistency). Spawn after changing any `SKILL.md`, agent
   definition file (`.claude/agents/*.md`), or instruction file.

@@ -83,8 +83,17 @@ verified work and flag the integration tests as **unverified** in your report, s
 runs this suite as a required job) can judge. "Unverified" is not "passed".
 
 ### 4. Commit & push (PR is the user's to open)
-Only after the build, format, and unit-test sequence above is green (integration tests follow the
-Docker exception in Step 3 — flag them as unverified rather than blocking the push).
+**Composed mode (orchestrated by `ship-slice`).** When the brief contains the exact phrase
+`composed mode — do NOT commit` (case-sensitive — the trigger `ship-slice` passes), do NOT commit or
+push. Build and self-verify only (Steps 2–3), then leave the
+changes **uncommitted** in the working tree and report — `ship-slice` reviews the working-tree diff
+*before* anything is committed and handles the commit itself once its quality gates pass. In this mode
+do **not** create or switch branches either: `ship-slice` guarantees you are already on the correct
+`feature/<...>` branch. Skip the rest of this step.
+
+Otherwise (standalone — the default): only after the build, format, and unit-test sequence above is
+green (integration tests follow the Docker exception in Step 3 — flag them as unverified rather than
+blocking the push).
 
 First check the current branch (`git branch --show-current`) — if you are already on a suitable
 `feature/<short-description>` branch, commit there; only create a new branch when you are still on
