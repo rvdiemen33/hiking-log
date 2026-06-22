@@ -48,9 +48,10 @@ the whole point: nothing known-bad ever reaches a commit.
 In composed mode `slice-builder` leaves the changes **uncommitted**, and a new slice is *mostly new
 (untracked) files* — so pick the right git command:
 
-- The baseline is `HEAD`. Pre-flight guarantees a clean tree at the start and nothing is committed on the
-  branch yet in composed mode, so `HEAD` is the branch's merge-base with `master` — the slice is exactly
-  everything the working tree adds on top of `HEAD`.
+- The baseline is `HEAD`. For a fresh run `HEAD` equals the branch's merge-base with `master` (clean tree,
+  nothing committed yet in composed mode). In the resume path (step 1) `HEAD` may already carry prior
+  commits — either way `git status --short` correctly shows the current working-tree additions, which are
+  the slice.
 - **List the touched files with `git status --short`** — it reports modified (`M`) *and* new/untracked
   (`??`) files. `git diff --name-only` alone omits untracked files, and a new slice is mostly new files,
   so never rely on it for the file list.
@@ -136,10 +137,13 @@ Operate on the slice diff (see "Determining the slice diff"). Each round:
 
 Repeat **until convergence** — stop as soon as a round yields no new confirmed findings. Non-progress
 guard: if a finding keeps reappearing without a fix resolving it, **revert the last failed fix** so the
-tree is back in its last verified-green state — do this with `Edit`/`Write` (the prior content is visible
-via `git diff`); `git restore`/`git reset` are not in the allow-list, and only `git stash` would help but
-it discards *all* working-tree changes, so reserve it for a full abort. Then stop and report — including
-the finding text, the file/line it references, the fixes you attempted, and why they failed.
+tree is back in its last verified-green state. Do this with `Edit`/`Write`: for a tracked file
+`git diff HEAD <file>` shows what changed, but the new (untracked) files that make up most of a slice
+never existed at `HEAD`, so `git diff` cannot recover their prior state — `Read` a file before you edit
+it if you may need to roll it back. `git restore`/`git reset` are not in the allow-list;
+`git stash --include-untracked` would stash *all* slice files including new ones (plain `git stash` skips
+untracked files) but discards everything, so reserve it for a full abort. Then stop and report —
+including the finding text, the file/line it references, the fixes you attempted, and why they failed.
 
 ### 4. Conditional skill review (before commit)
 Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, or instruction file (`CLAUDE.md`,
