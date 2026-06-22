@@ -82,6 +82,54 @@ One class per endpoint. Naming convention: `<Verb><Feature>Tests` — e.g. `Post
 
 401 tests (no token, expired token) go in a separate `Authentication` class — not per endpoint.
 
+### Behavioral coverage for query parameters and filters
+
+Status codes are necessary but **not sufficient**. A status-only test passes even when a filter is
+inverted, dropped, or ignored. Therefore:
+
+- **Any query parameter or filter** (e.g. `?year=2024`, or a by-parent route like
+  `/stages/{stageId}/hikelogs`) **must have at least one test that seeds data on both sides of the
+  filter and asserts the filter actually discriminates** — seed rows that MATCH and rows that do NOT
+  match, then assert both the returned count and that every returned row satisfies the filter.
+- **A GET collection** needs at least one test that seeds rows and asserts they come back. An
+  empty-database 200 test alone leaves the query/projection unverified (a handler that always returns an
+  empty list would still pass).
+
+The example below assumes the feature's Api and Application layers are already built (the preceding
+task-skills create `CreateHikeLogRequest`, `HikeLogResponse`, and the `/hikelogs` endpoint). Seed the
+parent route and stage inline, exactly as the other Tier 0 tests do — there is no shared seed helper on
+the base class:
+
+```csharp
+[Fact]
+public async Task GetHikeLogs_WhenFilteredByYear_ReturnsOnlyThatYear()
+{
+    var client = CreateClient();
+
+    // Seed the parent route + stage inline (same pattern as PostStageTests / GetStagesByRouteTests).
+    var routeResponse = await client.PostAsJsonAsync("/routes", new RouteFaker().Generate());
+    var routeId = (await routeResponse.Content.ReadFromJsonAsync<RouteResponse>())!.Id;
+    var stageResponse = await client.PostAsJsonAsync("/stages", new StageFaker(routeId).Generate());
+    var stageId = (await stageResponse.Content.ReadFromJsonAsync<StageResponse>())!.Id;
+
+    // One non-matching (2023) and two matching (2024) rows.
+    await client.PostAsJsonAsync("/hikelogs", new CreateHikeLogRequest(stageId, new DateOnly(2023, 5, 10), 120, "Sunny", null, 4));
+    await client.PostAsJsonAsync("/hikelogs", new CreateHikeLogRequest(stageId, new DateOnly(2024, 5, 10), 120, "Sunny", null, 4));
+    await client.PostAsJsonAsync("/hikelogs", new CreateHikeLogRequest(stageId, new DateOnly(2024, 8, 20), 90, "Cloudy", null, 3));
+
+    var logs = await client.GetFromJsonAsync<List<HikeLogResponse>>("/hikelogs?year=2024");
+
+    Assert.NotNull(logs);
+    Assert.Equal(2, logs!.Count);
+    Assert.All(logs, log => Assert.Equal(2024, log.DateHiked.Year));
+}
+```
+
+Construct the request record directly (not via the faker) when the test needs deterministic field
+values such as a specific year — the faker generates random data, which cannot pin a filter boundary.
+(If several tests in a class repeat the route+stage seed, a small `private static async Task<int>`
+helper in that class is fine — but it is defined in the test class, not inherited.)
+
 ### Seeding dependent records
 
 When testing an endpoint for a child resource (Stage, HikeLog), you must first seed the parent record via HTTP before exercising the endpoint under test. Use `CreateClient()` for the seeding call too — Respawn resets between tests so there is no shared state to rely on.
@@ -283,6 +331,8 @@ public class StageFaker : Faker<CreateStageRequest>
 - [ ] One test class per endpoint (`<Verb><Feature>Tests.cs`)
 - [ ] `[Collection(nameof(HikingLogTier0Collection))]` attribute present
 - [ ] All required status codes covered per verb (see table above)
+- [ ] Every query parameter / filter has a **behavioral** test (seeds matching + non-matching rows, asserts the filter discriminates) — not just a 200 status test
+- [ ] GET collection has a seeded "returns existing rows" test, not only an empty-DB 200
 - [ ] Faker uses `CustomInstantiator` (records have no parameterless constructor — `RuleFor` throws at runtime)
 - [ ] Faker created in `Fakers/` folder; child fakers accept parent id in constructor
 - [ ] Tier 0 seeds parent records before testing child endpoints

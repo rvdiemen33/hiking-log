@@ -45,6 +45,17 @@ the full plan in one message and wait for an explicit go-ahead before writing.
 ### 2. Compose the task-skills in order
 Invoke each via the `Skill` tool, passing the confirmed inputs. Skip steps not in scope.
 
+**Skip layers that already exist.** A feature may be partially built (commonly the entity, Fluent
+config, `DbSet`, and migration are already present while the Application/Api layers are not).
+**If the brief already names which layers to skip — `ship-slice` in composed mode always does, via its
+pre-flight inventory — honour that list and do not repeat the discovery.** Only in standalone mode (no
+skip-list in the brief) do the check yourself: before invoking a skill, see whether its output already
+exists — the entity in `HikingLog.Domain/Entities/`, the config in `Infrastructure/Data/Configurations/`,
+the `DbSet` on the context + interface, a migration under `Infrastructure/Migrations/`, the
+`Application/<Feature>/` files, the `Api/<Feature>/` controller. **Re-running `domain-entity` clobbers an
+existing entity and `dotnet-ef-migration` creates a spurious empty migration — do neither when the layer
+is already in place.**
+
 1. **`domain-entity`** — entity in `HikingLog.Domain`, Fluent config in `Infrastructure`, additive
    `DbSet` on `HikingLogDbContext` + `IHikingLogDataContext`.
 2. **`dotnet-ef-migration`** — add the migration for the new/changed schema.
