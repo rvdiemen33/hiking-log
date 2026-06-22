@@ -6,6 +6,8 @@ description: >
   entity, migration, commands/queries, API endpoint, DI registration, and tests in one go — rather than
   a single layer. It orchestrates the single-responsibility task-skills in order and verifies the build.
   For one isolated layer (just a command, just a query, just the entity), use that task-skill directly.
+  Do NOT use this when the request also carries "review", "code review", "quality gate", or "ship"
+  intent — those route to the `ship-slice` skill, which wraps this agent in composed (no-commit) mode.
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill
 model: sonnet
 ---

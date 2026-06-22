@@ -181,7 +181,8 @@ Spawn via the Agent tool (`subagent_type`). Agents run in their own context wind
 
 - `slice-builder` — orchestrates the task-skills to build a whole feature end to end
   (brief → `domain-entity` → `dotnet-ef-migration` → commands/queries → `api-endpoint` →
-  `register-di` → `integration-test` → verify → push). Use for a full slice; use the individual skills
+  `register-di` → `integration-test` → verify → commit & push, or leave uncommitted in composed mode).
+  Use for a full slice; use the individual skills
   for one layer. When wrapped by the `ship-slice` skill it runs in **composed mode** — build and verify
   only, leaving changes uncommitted so `ship-slice` can review before committing (it takes over the
   commit/push).
