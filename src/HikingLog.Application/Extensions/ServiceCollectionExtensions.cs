@@ -2,6 +2,8 @@ namespace HikingLog.Application.Extensions;
 
 using FluentValidation;
 using HikingLog.Application.Common;
+using HikingLog.Application.HikeLogs.Commands;
+using HikingLog.Application.HikeLogs.Queries;
 using HikingLog.Application.Routes.Commands;
 using HikingLog.Application.Routes.Queries;
 using HikingLog.Application.Stages.Commands;
@@ -38,6 +40,18 @@ public static class ServiceCollectionExtensions
         // Stages — validators
         services.AddScoped<IValidator<AddStage>, AddStageValidator>();
         services.AddScoped<IValidator<UpdateStage>, UpdateStageValidator>();
+
+        // HikeLogs — handlers (child of Stage: AddHikeLog and UpdateHikeLog carry NotFound)
+        services.AddScoped<ICommandHandler<AddHikeLog, OneOf<AddHikeLogResult, ValidationFailed, NotFound>>, AddHikeLogHandler>();
+        services.AddScoped<ICommandHandler<UpdateHikeLog, OneOf<UpdateHikeLogResult, ValidationFailed, NotFound>>, UpdateHikeLogHandler>();
+        services.AddScoped<ICommandHandler<DeleteHikeLog, OneOf<Success, NotFound>>, DeleteHikeLogHandler>();
+        services.AddScoped<IQueryHandler<GetHikeLogs, IReadOnlyList<HikeLogDto>>, GetHikeLogsHandler>();
+        services.AddScoped<IQueryHandler<GetHikeLog, OneOf<HikeLogDto, NotFound>>, GetHikeLogHandler>();
+        services.AddScoped<IQueryHandler<GetHikeLogsByStage, IReadOnlyList<HikeLogDto>>, GetHikeLogsByStageHandler>();
+
+        // HikeLogs — validators
+        services.AddScoped<IValidator<AddHikeLog>, AddHikeLogValidator>();
+        services.AddScoped<IValidator<UpdateHikeLog>, UpdateHikeLogValidator>();
 
         return services;
     }

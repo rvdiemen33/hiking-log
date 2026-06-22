@@ -133,6 +133,12 @@ Seed three real long-distance routes, each with at least five stages with realis
 
 ---
 
+## Delivery status
+
+- [x] HikeLogs — entity (pre-existing), CRUD commands, GetHikeLog / GetHikeLogs (`?year=` filter) / GetHikeLogsByStage queries, 6 API endpoints, DI, Tier 0 + Tier 3 tests (branch `feature/hikelogs-slice`)
+
+---
+
 ## Possible extensions (out of scope for now)
 
 - Photo URL on `HikeLog`
