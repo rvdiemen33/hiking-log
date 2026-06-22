@@ -43,22 +43,24 @@ the whole point: nothing known-bad ever reaches a commit.
   confirmed findings). The runaway guard is *non-progress*: if the same finding keeps coming back
   without a fix resolving it, stop and report it — do not loop forever and do not invent a fixed count.
 
-## Determining the slice diff (used by steps 2–5)
+## Determining the slice diff (used by steps 3–5)
 
 In composed mode `slice-builder` leaves the changes **uncommitted**, and a new slice is *mostly new
-(untracked) files* — so a bare `git diff` is the wrong instrument (it shows neither untracked files nor,
-if `master` has advanced, only this branch's work). Establish the slice's change set like this:
+(untracked) files* — so pick the right git command:
 
-- The baseline is the branch's merge-base with `master`. Since pre-flight guarantees a clean tree at the
-  start, `HEAD` is that baseline.
-- **Stage everything first** so untracked files are included: `git add -A`. Then the full slice is
-  `git diff --staged` (all new + modified files vs `HEAD`).
-- To list *which* files changed (step 4 detection), use `git status --short` — it includes untracked
-  files, which `git diff --name-only` alone omits.
-
-Staging is harmless here: you commit this exact set later anyway. If the `code-review` tool needs the
-changes unstaged instead, it will say so — re-run it after `git restore --staged .` (but the diff you
-reason about is always the staged set above).
+- The baseline is `HEAD`. Pre-flight guarantees a clean tree at the start and nothing is committed on the
+  branch yet in composed mode, so `HEAD` is the branch's merge-base with `master` — the slice is exactly
+  everything the working tree adds on top of `HEAD`.
+- **List the touched files with `git status --short`** — it reports modified (`M`) *and* new/untracked
+  (`??`) files. `git diff --name-only` alone omits untracked files, and a new slice is mostly new files,
+  so never rely on it for the file list.
+- **Do not pre-stage during review.** Review fixes are written to the working tree with `Edit`/`Write`,
+  and the review tools/agents read those files directly from the working tree. Keeping the index empty
+  until commit avoids any stale-staged-vs-working-tree mismatch (a staged snapshot taken before a fix
+  would be out of date the moment the fix lands). You stage exactly once, at commit (step 6:
+  `git add -A`), which captures every reviewed file including new ones.
+- If the `code-review` tool surfaces only tracked changes, make sure new files are still covered — the
+  fallback agents read every path reported by `git status --short`.
 
 ## What "confirmed" means and who applies fixes
 
@@ -133,9 +135,11 @@ Operate on the slice diff (see "Determining the slice diff"). Each round:
    are *unverified*, not passed (see Honesty rules).
 
 Repeat **until convergence** — stop as soon as a round yields no new confirmed findings. Non-progress
-guard: if a finding keeps reappearing without a fix resolving it, **undo the last failed fix attempt to
-leave the tree in its last verified-green state**, then stop and report — including the finding text, the
-file/line it references, the fixes you attempted, and why they failed.
+guard: if a finding keeps reappearing without a fix resolving it, **revert the last failed fix** so the
+tree is back in its last verified-green state — do this with `Edit`/`Write` (the prior content is visible
+via `git diff`); `git restore`/`git reset` are not in the allow-list, and only `git stash` would help but
+it discards *all* working-tree changes, so reserve it for a full abort. Then stop and report — including
+the finding text, the file/line it references, the fixes you attempted, and why they failed.
 
 ### 4. Conditional skill review (before commit)
 Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, or instruction file (`CLAUDE.md`,
@@ -155,21 +159,27 @@ present? Are all business rules of *this* feature covered? Report any gaps as fo
 them unprompted.
 
 ### 6. Commit & push
-Only now, with every gate green. Commit the reviewed slice as a single clean `feat(...)` commit — the
-review fixes are already folded in, so there are no separate `fix` commits; a single commit keeps the
-feature's history atomic and ships exactly the reviewed state. Then push:
+Only now, with every gate green. **Stage the full reviewed slice first — `git add -A`** — so every new
+file *and* every review fix lands in the commit (the working tree, not the index, holds the fixes until
+now). Then commit as a single clean `feat(...)` commit — the review fixes are already folded in, so there
+are no separate `fix` commits; a single commit keeps the feature's history atomic and ships exactly the
+reviewed state. Then push, choosing by upstream state (check `git status`: "no upstream branch" → new;
+"up to date with"/"ahead of origin/…" → existing):
 - new branch (no upstream yet): `git push -u origin HEAD`;
 - existing upstream: `git push`.
 
 ### 7. Docs sync
 `.claude/functional-plan.md` is a static spec with **no status field** — do **not** edit its spec tables
-or invent per-row "done" markup. Instead, record delivery additively: maintain a **`## Delivery status`**
+or invent per-row "done" markup. Instead, record delivery additively in a **`## Delivery status`**
 section (create it once, just above `## Possible extensions`, if absent) with one checklist line per
-delivered feature, e.g. `- [x] HikeLogs — entity, CRUD, ?year filter, by-stage query (PR #N)`. Update it
-only if the completeness check found **this feature** fully covered (all of its endpoints and business
-rules present). Gaps in *other*, not-yet-built features are expected and do not block this sync; an
-incomplete *this* feature does — report it and leave the plan unchanged. Commit separately as
-`docs(plan): ...`.
+delivered feature, e.g. `- [x] HikeLogs — entity, CRUD, ?year filter, by-stage query (PR #N)`.
+
+The completeness check (step 5) decides the branch — gaps in *other*, not-yet-built features are expected
+and do not block this sync; only an incomplete *this* feature does:
+- **This feature fully covered** → add the checklist line, then `git commit` it as `docs(plan): mark
+  <feature> delivered`, and **`git push`** so the docs commit reaches the same remote branch as the
+  feature commit (step 6's push does not include this later commit).
+- **Gaps in this feature** → report them and leave the plan unchanged (no docs commit).
 
 ### 8. Final report (PR stays the user's call)
 Do not run `gh pr create` yourself — `gh` is intentionally not in the allow-list and opening a PR is the
