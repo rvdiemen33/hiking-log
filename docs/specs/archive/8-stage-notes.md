@@ -1,5 +1,5 @@
 ---
-status: implemented
+status: closed
 issue: 8
 created: 2026-09-17
 ---

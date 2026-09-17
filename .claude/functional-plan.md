@@ -32,6 +32,7 @@ A single day-stage of a route.
 | DistanceKm | decimal | Length in km |
 | ElevationDifferenceM | decimal | Elevation difference in metres |
 | Difficulty | enum | Easy / Moderate / Hard |
+| Notes | string? | Personal note, optional, max 2000 chars |
 
 ### HikeLog
 A log entry for a completed stage.
@@ -118,6 +119,9 @@ Difficulty: Easy | Moderate | Hard
 - Validate that the referenced route exists when creating a stage.
 - Validate that the referenced stage exists when creating a hikelog.
 - Rating must be between 1 and 5.
+- A stage note is stored verbatim: no trimming, no normalisation, and an empty string stays an empty
+  string rather than becoming null. `PUT /stages/{id}` replaces it, so a request that omits `notes`
+  clears an existing note.
 
 ---
 
