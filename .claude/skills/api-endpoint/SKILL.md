@@ -124,6 +124,8 @@ Never return entities at the API boundary — always map to response models.
 
 Inject handlers directly via the primary constructor — **never IMediator**.
 
+**Route templates are lowercase literals — never the `[controller]` token.** `[Route("[controller]")]` expands to the class name (`Routes`, capital R), which routes fine (matching is case-insensitive) but publishes a capitalised path in Swagger and in the `Location` header of `CreatedAtAction`. Write `[Route("routes")]` so every path in the API is lowercase.
+
 ```csharp
 namespace HikingLog.Api.Routes;
 
@@ -136,7 +138,7 @@ using OneOf;
 
 /// <summary>Controller for managing routes.</summary>
 [ApiController]
-[Route("[controller]")]
+[Route("routes")]
 public sealed class RoutesController(
     ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>> addHandler,
     ICommandHandler<UpdateRoute, OneOf<UpdateRouteResult, ValidationFailed, NotFound>> updateHandler,
@@ -227,7 +229,7 @@ list is the result when there is nothing to return — including a nested collec
 Some features span two prefixes — e.g. the functional plan exposes Stages at
 `GET /routes/{routeId}/stages` (collection, nested) **and** `GET|PUT|DELETE /stages/{id}`,
 `POST /stages`. When a controller's actions don't share one prefix, omit the class-level
-`[Route("[controller]")]` and give each action an **absolute** route template instead:
+`[Route(...)]` and give each action an **absolute** route template instead:
 
 ```csharp
 namespace HikingLog.Api.Stages;

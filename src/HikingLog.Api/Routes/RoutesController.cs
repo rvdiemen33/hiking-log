@@ -9,7 +9,7 @@ using OneOf;
 
 /// <summary>Controller for managing long-distance hiking routes.</summary>
 [ApiController]
-[Route("[controller]")]
+[Route("routes")]
 public sealed class RoutesController(
     ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>> addHandler,
     ICommandHandler<UpdateRoute, OneOf<UpdateRouteResult, ValidationFailed, NotFound>> updateHandler,
