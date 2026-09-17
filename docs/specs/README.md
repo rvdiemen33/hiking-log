@@ -24,6 +24,8 @@ spec-create  →  draft  →  spec-review  →  reviewed  →  (human sets appro
                                                               │
                                               implementing → implemented
                                                               │
+                                                     PR merged │ run spec-close
+                                                     in the same session
                                                               ▼
                                                         spec-close
                                             (three close-out questions → harvest
@@ -69,6 +71,12 @@ recommended, not required — a small feature can go straight to `spec-create` w
   dimension judges: what happens to existing data, existing behaviour and existing clients. A
   greenfield slice writes "none identified"; a change to an existing table, handler or endpoint spells
   out the data strategy, the behaviour delta and any breaking change.
+- **A merged feature is closed in the same session.** Nothing in the repo watches GitHub, so the session
+  that merged the pull request is the only one that knows the merge happened — it runs `spec-close` right
+  after, without waiting to be asked. `spec-close` proves the merge from `git log` on `master` or
+  `origin/master` instead of asking about it, so a routine slice that yields no lasting decision retires
+  without a single question. Running it later by hand still works and is what a merge performed outside a
+  session needs.
 - **A clean draft goes through the gate in the same run.** `spec-create` invokes `spec-review` itself
   once its refine pass leaves no `TO CONFIRM:` marker, so such a spec arrives at `reviewed` without a
   second command. A draft that still carries a marker stops at `draft` — the gate would only report
