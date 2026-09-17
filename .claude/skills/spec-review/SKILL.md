@@ -2,10 +2,11 @@
 name: spec-review
 description: >
   Spec-driven development review gate for HikingLog. Locates a spec in docs/specs/ and dispatches the
-  model-pinned spec-reviewer agent in gate mode: the agent critiques the spec across seven dimensions
+  model-pinned spec-reviewer agent in gate mode: the agent critiques the spec across eight dimensions
   (completeness, domain/persistence consistency, Application-to-Api consistency, edge cases, validation
-  gaps, test coverage, unresolved TO CONFIRM markers), appends Review Notes to the spec, and flips
-  status draft to reviewed when no blockers remain. Use when the user says "review my spec", "check the
+  gaps, test coverage, unresolved TO CONFIRM markers, impact on existing data/behaviour/clients),
+  appends Review Notes to the spec, and flips status draft to reviewed when no blockers remain; the
+  skill then commits the gate result. Use when the user says "review my spec", "check the
   spec for X", "is this spec ready", "/spec-review", or right after spec-create once they have edited
   the draft. Takes an optional file path; defaults to the most recent draft in docs/specs/.
   Do NOT use to review backend code — that is backend-review — and do NOT use to review the Claude Code
@@ -37,12 +38,12 @@ Spawn the agent (`Agent` tool, `subagent_type: spec-reviewer`) with:
 
 > Review the spec at `{path}` in **gate mode**.
 
-The agent reads the spec, evaluates the seven dimensions against `.claude/functional-plan.md` and the
+The agent reads the spec, evaluates the eight dimensions against `.claude/functional-plan.md` and the
 rules in `.claude/rules/backend/`, appends `## Review Notes`, and flips `status: draft` → `reviewed`
 when it finds no blockers.
 
 **Fallback if the agent is not in the registry** (which happens when its definition was created in
-this same session): spawn a read-only `Explore` agent instead, inline the seven dimensions and the
+this same session): spawn a read-only `Explore` agent instead, inline the eight dimensions and the
 severity scale from `.claude/agents/spec-reviewer.md` into its prompt, and apply its Review Notes and
 status flip yourself with `Edit`. Say in your report that the fallback ran.
 
@@ -64,4 +65,19 @@ Blockers:
 >
 > Run `spec-review` again once they are resolved."
 
-Do not commit the spec — per `CLAUDE.md`, commit only when the user asks.
+## Step 4 — Commit the gate result
+
+The gate result is part of the spec's history (see `docs/specs/README.md`): every status transition
+and every Review Notes revision is its own commit, so a reopened spec's second review is
+distinguishable from its first. This is one of the spec-flow commits `CLAUDE.md` exempts from "commit
+only when the user asks".
+
+1. Stage **only the spec**: `git add {path}`. Never `git add -A`.
+2. Commit with the outcome in the subject:
+   - no blockers → `docs(spec): review {slug} — reviewed`
+   - blockers → `docs(spec): review {slug} — {N} blocker(s)`
+3. Do not push. If the working tree has nothing staged (the agent found the spec unchanged — a rerun on
+   an already-reviewed file), skip the commit and say so.
+
+If the user's own marker edits are still uncommitted when the gate runs, they ride along in this commit
+— that is intended: the reviewed text and its verdict belong in one snapshot.

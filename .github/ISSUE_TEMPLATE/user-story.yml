@@ -1,0 +1,84 @@
+name: User story
+description: A feature request that passes the Definition of Ready and can start the spec-driven flow.
+title: "[Story] "
+labels: ["user-story"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is the **Definition of Ready**. A story that fills it in completely can go straight to
+        `spec-create`; the issue number becomes the prefix of the spec (`docs/specs/{issue}-{slug}.md`),
+        the feature branch and the pull request.
+
+  - type: textarea
+    id: story
+    attributes:
+      label: Story
+      description: Who wants what, and why — in one or two sentences.
+      placeholder: As a hiker, I want to add a note to a completed stage so that I remember what made it memorable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: value
+    attributes:
+      label: Business value
+      description: Why this is worth building now. What becomes possible, or what stops going wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: SMART — specific, measurable, observable through the API. One Given/When/Then per line; use real values.
+      placeholder: |
+        - Given a completed stage, when I PUT a note of 500 characters, then the note is stored and returned on GET.
+        - Given a note of 501 characters, when I PUT it, then the API answers 400 with a validation error on Note.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Which part of the domain does this touch?
+      options:
+        - Routes
+        - Stages
+        - HikeLogs
+        - Statistics
+        - New entity
+        - Cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Existing behaviour affected
+      description: Existing data, endpoints or rules that change or break. Write "none" if the story only adds.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and blockers
+      description: Anything that must exist or be decided first. Write "none" if there is nothing.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: dor
+    attributes:
+      label: Definition of Ready
+      options:
+        - label: The business value is stated
+          required: true
+        - label: The acceptance criteria are SMART and testable through the API
+          required: true
+        - label: The story fits in one feature branch and one pull request
+          required: true
+        - label: There are no blocking dependencies
+          required: true

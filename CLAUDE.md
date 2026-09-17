@@ -47,9 +47,10 @@ HikingLog.slnx
   the delivery status), merged into `master` with a merge commit (`Merge feature/<x> into master`).
 - Source control is GitHub (`gh`). Opening a PR is always the user's call — never run `gh pr create`
   unprompted; `gh` is deliberately absent from the permission allow-list.
-- Outside the `ship-slice` skill, a standalone `slice-builder` run, and the spec-flow skills that own a
-  specific commit (`spec-implement` commits only the spec's status line; `spec-close` commits the
-  retirement after the user confirms), commit or push only when the user asks.
+- Outside the `ship-slice` skill, a standalone `slice-builder` run, and the spec-flow skills that own
+  specific commits (`spec-create`, `spec-review`, `spec-implement`, `spec-close`), commit or push only
+  when the user asks. `docs/specs/README.md` owns the spec-flow commit conventions: which skill commits
+  what, the `docs(spec)` scope, and the `Reopens-Spec` trailer for a status that runs backwards.
 
 ## Verification
 
@@ -215,8 +216,10 @@ Task-skills (one layer each):
 Orchestrators and reviews (main-loop skills — a subagent cannot spawn agents):
 
 - `ship-slice` — delivers a feature end to end **with the quality gate**: spawns `slice-builder` (build only, no
-  commit) → `backend-review` over the uncommitted working tree (apply confirmed fixes, re-verify, loop to
-  convergence) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
+  commit) → `backend-review` (+ `spec-verify` when a spec drives the slice) over the uncommitted working
+  tree (apply confirmed mechanical fixes, re-verify; two fix rounds plus a verification-only pass, then
+  escalate if still not clean; a design finding stops the loop — reopening the spec when one drives the
+  slice, otherwise as a question to the user) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
   completeness check vs `functional-plan.md` → commits the reviewed slice → docs sync → reports the
   ready-to-run `gh pr create`. Use for "build, review and ship X"; use `slice-builder` for a plain build, or a
   single task-skill for one layer.
@@ -231,12 +234,18 @@ Spec-driven development (main-loop skills — see **Spec-driven development**; l
 carry no `evals/`, because they produce a spec and a delegation, not generated code):
 
 - `spec-create` — interviews, explores the solution read-only, writes `docs/specs/<name>.md` as `draft`,
-  then auto-refines it against `spec-reviewer` in advisory mode.
-- `spec-review` — the `draft → reviewed` gate; dispatches `spec-reviewer` in gate mode. Read-only itself.
+  auto-refines it against `spec-reviewer` in advisory mode, then commits the draft on `feature/<slug>`.
+- `spec-review` — the `draft → reviewed` gate; dispatches `spec-reviewer` in gate mode and commits the
+  gate result.
 - `spec-implement` — turns an **approved** spec into a brief and delegates to `ship-slice` (default) or
-  `slice-builder`; maintains the spec's status and checkboxes. Writes no slice code.
-- `spec-close` — retires an **implemented** spec: harvests into `functional-plan.md` (and `docs/adr/` when
-  a lasting decision exists), archives the spec under `docs/specs/archive/`.
+  `slice-builder`; maintains the spec's status and checkboxes, and reopens the spec on a design finding
+  on its `slice-builder`-only route. Writes no slice code.
+- `spec-verify` — lays the slice diff against its spec via the `spec-verifier` agent: missing or
+  contradicted `R` requirements, untested `AC` scenarios, unspecified changes — each classified
+  **mechanical** (fix the code) or **design** (reopen the spec). Runs inside `ship-slice`'s review loop
+  when a spec drives the slice, and standalone. Read-only.
+- `spec-close` — retires an **implemented** spec: three explicit close-out questions (lasting decision?
+  docs made wrong? docs missing?), harvest into `functional-plan.md`, archive under `docs/specs/archive/`.
 
 ## Agents
 
@@ -251,12 +260,17 @@ Spawn via the Agent tool (`subagent_type`). Agents run in their own context wind
 - `backend-reviewer-architecture` · `backend-reviewer-data-performance` · `backend-reviewer-correctness` ·
   `backend-reviewer-code-quality` · `backend-reviewer-tests` — read-only code-review lenses (`Read, Grep,
   Glob`) that return a JSON findings array; orchestrated by `backend-review`, usable standalone for one angle.
-- `spec-reviewer` — model-pinned (`sonnet`) reviewer of **one** spec in `docs/specs/`, across seven
-  dimensions. Gate mode appends `## Review Notes` and flips `status` to `reviewed`; advisory mode reports
-  only. Dispatched by `spec-review` and by `spec-create`'s refine pass. Reviews specs, never source code.
+- `spec-reviewer` — model-pinned (`opus`) reviewer of **one** spec in `docs/specs/`, across eight
+  dimensions (the eighth: impact on existing data, behaviour and clients). Gate mode appends
+  `## Review Notes` and flips `status` to `reviewed`; advisory mode reports only. Dispatched by
+  `spec-review` and by `spec-create`'s refine pass. Reviews specs, never source code.
   It deliberately carries no `-<lens>` suffix: unlike `backend-review` and `review-claude-setup`, the spec
   gate is a **single-agent** family — one spec is small enough that fanning out would cost more than it
-  buys, and the seven dimensions stay in one file.
+  buys, and the eight dimensions stay in one file.
+- `spec-verifier` — model-pinned (`opus`) verifier of the **code diff against one spec** (`Read, Grep,
+  Glob, Bash` — Bash for read-only `git status`/`git diff` only). Returns coverage per `R`/`AC`
+  id plus findings classified mechanical or design; dispatched by `spec-verify`. It verifies code against
+  a spec — `backend-review` judges code against the rules, `spec-reviewer` judges the spec itself.
 - `claude-setup-reviewer-skills` · `claude-setup-reviewer-agents` · `claude-setup-reviewer-config` ·
   `claude-setup-reviewer-consistency` · `claude-setup-reviewer-placement` ·
   `claude-setup-reviewer-code-examples` — read-only lenses over the Claude Code setup; orchestrated by
@@ -280,13 +294,16 @@ purpose: the spec is situational, and the skills and agents that need it already
 
 Non-trivial features are specified in `docs/specs/` before they are built:
 `spec-create` → `draft` → `spec-review` → `reviewed` → **(you set `approved` by hand)** → `spec-implement`
-→ `implemented` → `spec-close`. Specs are ephemeral working artifacts; what lasts is harvested into
+(whose `ship-slice` review loop runs `spec-verify`) → `implemented` → `spec-close`. Specs are ephemeral working artifacts; what lasts is harvested into
 `.claude/functional-plan.md` (and `docs/adr/`) when the spec is closed.
 
-`docs/specs/README.md` is the source of truth for the statuses, filename and frontmatter conventions and
-the `TO CONFIRM:` marker — read it when you touch a spec. Two things matter session-wide: **`approved` is
-the one transition no skill makes for you**, and **a small, obvious change needs no spec** — go straight
-to `ship-slice` or a single task-skill.
+A spec normally starts from a GitHub issue filed with the **User story** form
+(`.github/ISSUE_TEMPLATE/user-story.yml`, the Definition of Ready), and its status can run backwards
+when a later phase finds a design gap. `docs/specs/README.md` is the source of truth for the statuses,
+the reopening table, filename and frontmatter conventions and the `TO CONFIRM:` marker — read it when
+you touch a spec. Two things matter
+session-wide: **`approved` is the one transition no skill makes for you**, and **a small, obvious change
+needs no spec** — go straight to `ship-slice` or a single task-skill.
 
 ## Scope
 

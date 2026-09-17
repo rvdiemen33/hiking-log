@@ -6,7 +6,8 @@ description: >
   asks to "build, review and ship feature X", "run the full quality gate for X", "deliver X with code
   review", or otherwise wants the slice built AND reviewed AND committed in one orchestrated pass. It
   composes the existing pieces — the `slice-builder` agent (which it drives in a no-commit "composed
-  mode"), the `backend-review` skill (five read-only lens agents), the `review-claude-setup` skill — and
+  mode"), the `backend-review` skill (five read-only lens agents), the `spec-verify` skill (code against
+  the approved spec, when one drives the slice), the `review-claude-setup` skill — and
   runs the chain at the main-loop level (a subagent cannot spawn agents, so this cannot live inside
   `slice-builder`). Do NOT use this for
   a plain "add feature X" with no review/ship intent (that stays `slice-builder`), nor for a single
@@ -41,9 +42,12 @@ the whole point: nothing known-bad ever reaches a commit.
 - **"Unverified" is never "passed."** Integration tests need Docker (Testcontainers). If Docker is
   unavailable and you could not run them, say so explicitly — do not claim they passed.
 - **Never commit or push known-red work** (failing build, format, or tests — Docker exception aside).
-- **No hard iteration cap on the review loop.** Loop until it *converges* (a round produces no new
-  confirmed findings). The runaway guard is *non-progress*: if the same finding keeps coming back
-  without a fix resolving it, stop and report it — do not loop forever and do not invent a fixed count.
+- **The review loop is bounded: at most two fix rounds.** Round 1 reviews and fixes, round 2 re-reviews
+  and fixes, and a third pass is *verification only* — if it still yields a confirmed finding, stop and
+  escalate to the human with the open findings; never a third fix round, never "looks fine now". The
+  exit is **verification green and no open confirmed finding** — not "the reviewer has nothing more to
+  say", because that moment never comes. The *non-progress* guard still stops earlier: the same finding
+  back after a fix that claimed to resolve it ends the loop at once.
 
 ## Determining the slice diff (used by steps 3–5)
 
@@ -78,10 +82,22 @@ In composed mode `slice-builder` leaves the changes **uncommitted**, and a new s
 
 You (the main loop) own the working tree — the review tools do not write to it. For each round:
 - A finding is **confirmed** when it survived the review skill's own verification pass and carries
-  severity **CRITICAL or SIGNIFICANT** — both `backend-review` and `review-claude-setup` drop
-  unverifiable findings before reporting. MINOR findings are advisory: apply one only when the fix is
-  trivial and obviously correct; otherwise list it as follow-up.
-- Apply each confirmed finding yourself with `Edit`/`Write`, then re-verify (below).
+  severity **CRITICAL or SIGNIFICANT** — `backend-review`, `review-claude-setup` and `spec-verify` all
+  drop unverifiable findings before reporting. MINOR findings are advisory: apply one only when the fix is
+  trivial and obviously correct; otherwise list it as follow-up. **Nothing is applied — MINOR included —
+  during the verification-only pass** (Honesty rules); whatever surfaces there goes to the follow-up
+  list or the escalation report.
+- **Classify every confirmed code finding (step 3) before applying it.** `spec-verify` does this
+  itself (its findings carry a `class`); `backend-review` reports code against the rules and does not,
+  so you do, with the spec — or, without one, the feature's plan section — as the reference.
+  `review-claude-setup` findings (step 4) need no classification — a setup file has no spec to be wrong
+  against; apply them as they come. **Mechanical**: the
+  reference is right and the code is not — a failing test, a null check, a naming or contract slip, a
+  missing registration, a rule violation. **Design**: a wrong abstraction, a missed edge case, a
+  behaviour the reference never decided. A design finding is **never patched in code**: with a spec it
+  stops the loop and reopens the spec (step 3); without one it stops the loop and goes to the user as a
+  design question.
+- Apply each confirmed mechanical finding yourself with `Edit`/`Write`, then re-verify (below).
 - If a finding's correct fix is genuinely unclear and no user is reachable, **stop and report it** —
   never guess at a fix you don't understand.
 
@@ -104,6 +120,11 @@ The review steps use two **repo-owned** skills, both read-only and both defined 
   returns CRITICAL/SIGNIFICANT findings inline plus a report in `reviews/` (gitignored).
 - **`review-claude-setup`** (step 4) — same shape over `.claude/**` and `CLAUDE.md`, with the six
   `claude-setup-reviewer-*` lenses.
+- **`spec-verify`** (step 3, **only when the brief names a spec** — `spec-implement` always does) —
+  dispatches the `spec-verifier` agent over the working tree against `docs/specs/<name>.md` and answers
+  three questions: which `R` requirements are missing or contradicted, which `AC` scenarios have no
+  test, what changed that the spec never mentions. Every finding is classified **mechanical** (fix the
+  code) or **design** (reopen the spec); report in `reviews/`.
 
 Invoke each with `Skill(...)`, stating the scope explicitly ("scope: working tree", or an explicit file
 list for a scoped re-review). Neither skill edits anything — you apply the fixes.
@@ -179,6 +200,19 @@ Operate on the slice diff (see "Determining the slice diff"). Each round:
    built from the same task-skills as Routes/Stages) needs nothing beyond `backend-review`; for a large,
    novel, or architecturally unusual slice — or when the user asked to be thorough / "audit" — add the
    optional session-level `code-review` pass described in step 0.
+   **When the caller supplied a spec**, run the **`spec-verify` skill** in the same round (scope
+   working tree, the spec path from the brief, `round: {n}`). Apply its confirmed **mechanical**
+   findings: a missing requirement by re-invoking the responsible task-skill (`domain-entity`,
+   `dotnet-ef-migration`, `add-command`, `add-query`, `api-endpoint`, `register-di`,
+   `integration-test`) or, when the gap is isolated, with `Edit`/`Write`; an untested scenario by
+   writing the test. A confirmed **design** finding **stops the loop** — the fix belongs in the spec,
+   not the slice, and the decision belongs to the human. You observed it and hold the spec path, so
+   **reopen the spec yourself**: set `status: draft`, append the finding verbatim with its `SV-` id
+   under `## Open questions`, and commit **only the spec** — `docs(spec): reopen {slug} — {one-line
+   reason}` with the trailer `Reopens-Spec: docs/specs/{name}.md` (`docs/specs/README.md → Reopening a
+   spec`). Leave the slice uncommitted in the working tree as the evidence, do not patch around the
+   finding, then stop and report. The human resolves the spec, runs `spec-review`, sets `approved`,
+   and the build resumes on the same branch.
 2. **Re-verify after every round** at the chosen safety level: the `/check` sequence (`dotnet build`,
    `dotnet format --verify-no-changes`, `dotnet test tests/HikingLog.Application.Tests`,
    `dotnet test tests/HikingLog.Api.Tests`) **plus the integration tests, which `/check` does NOT
@@ -186,7 +220,13 @@ Operate on the slice diff (see "Determining the slice diff"). Each round:
    is full verification each round, not a cheap subset. If Docker is unavailable, the integration tests
    are *unverified*, not passed (see Honesty rules).
 
-Repeat **until convergence** — stop as soon as a round yields no new confirmed findings.
+**Rounds.** A round that applied at least one fix is a *fix round*; you get **two**. After the second,
+run one more review pass **without fixing**: clean (no confirmed finding, verification green and —
+with a spec — full `R`/`AC` coverage) → the loop exits; not clean → **stop and escalate**: report the
+open findings with `file:line`, the fixes the two rounds applied, and leave the tree uncommitted for
+the human to decide. A **design** finding surfacing at any point follows point 1's reopen-or-ask
+protocol instead of this generic escalation. A round that finds nothing ends the loop early. Each re-review runs in fresh lens
+agents, so a round never inherits the previous round's reasoning.
 
 **Scope of the re-review vs. the re-verify — they differ.** The re-*verify* in point 2 is always full
 (build + format + unit + integration), never a subset — a fix anywhere can break anything. The
@@ -195,7 +235,7 @@ files (e.g. only test files, with the production code already reported clean), t
 just those changed files — a focused pass confirming the fixes introduced no new defect — rather than
 re-running the full multi-angle fan-out over already-clean code. Use the full fan-out again only when a
 fix touched production code broadly or you have reason to think it shifted behaviour elsewhere. A scoped
-round that yields no new findings still counts as convergence. **Guard: scoping is only allowed after at
+round that yields no new findings is a clean exit like any other. **Guard: scoping is only allowed after at
 least one full fan-out pass has covered the whole slice** — never scope from the first round, or a
 production-code defect the first pass would have caught could go unreviewed.
 
@@ -219,7 +259,8 @@ Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, `.claude/r
 via `git status --short` (includes untracked files). A normal slice touches none of these, so skip it then.
 
 If it did: run the **`review-claude-setup` skill** with scope **working tree**, apply confirmed fixes
-(CRITICAL/SIGNIFICANT), and repeat until clean (same convergence rule as step 3). Re-verify with the
+(CRITICAL/SIGNIFICANT), and repeat until clean under the same two-fix-round cap and escalation as
+step 3. Re-verify with the
 `/check` sequence — these changes are to skill/doc files that do not affect compiled code, so the
 integration tests are not required here; run them only if a fix also touched `src/` or `tests/`.
 
@@ -231,10 +272,10 @@ present? Are all business rules of *this* feature covered? Report any gaps as fo
 them unprompted.
 
 **When the caller supplied a spec** (`spec-implement` passes `docs/specs/<name>.md` as the authoritative
-scope document), that spec is the **primary** source for this check — it is more specific than the plan
-and lists the exact commands, queries, endpoints, business rules and tests the slice owes. Compare
-against it first, then against the feature's plan section **if one exists**; a spec-driven feature may be
-new to the plan, and an absent plan section is expected, not a gap.
+scope document), the last clean `spec-verify` round of step 3 **is** the completeness check against the
+spec — its coverage line (`R x/y implemented · AC x/y tested`) is the evidence; do not spawn a second
+agent to repeat it. Still compare against the feature's plan section **if one exists**; a spec-driven
+feature may be new to the plan, and an absent plan section is expected, not a gap.
 
 ### 6. Commit & push
 Only now, with every gate green. **Stage the full reviewed slice first — `git add -A`** — so every new
@@ -270,7 +311,9 @@ Do not run `gh pr create` yourself — `gh` is intentionally not in the allow-li
 user's outward-facing call. Report:
 - what was built (entity, commands/queries, endpoints, tests);
 - verification results (and explicitly flag integration tests as unverified if Docker was unavailable);
-- review fixes applied;
+- with a spec: the final `spec-verify` coverage line and the number of mechanical findings applied;
+- review fixes applied and the fix rounds used (`n` of 2) — on an escalation, the open findings with
+  `file:line` instead of a commit;
 - any completeness gaps as follow-up;
 - the ready-to-run command:
 
