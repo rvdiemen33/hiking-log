@@ -23,10 +23,13 @@ HikingLog.slnx
 │   ├── HikingLog.Api             → Controllers, API models, Program.cs
 │   ├── HikingLog.AppHost         → .NET Aspire orchestration host
 │   └── HikingLog.ServiceDefaults → Shared Aspire service defaults (telemetry, health, resilience)
-└── tests/
-    ├── HikingLog.Application.Tests
-    ├── HikingLog.Api.Tests
-    └── HikingLog.IntegrationTests  → Testcontainers + Respawn, Tier 0 & Tier 3
+├── tests/
+│   ├── HikingLog.Application.Tests
+│   ├── HikingLog.Api.Tests
+│   └── HikingLog.IntegrationTests  → Testcontainers + Respawn, Tier 0 & Tier 3
+└── docs/
+    ├── specs/                      → feature specs (see Spec-driven development); archive/ holds closed ones
+    └── adr/                        → architecture decision records, created on demand by `spec-close`
 ```
 
 ## Branch workflow
@@ -44,7 +47,9 @@ HikingLog.slnx
   the delivery status), merged into `master` with a merge commit (`Merge feature/<x> into master`).
 - Source control is GitHub (`gh`). Opening a PR is always the user's call — never run `gh pr create`
   unprompted; `gh` is deliberately absent from the permission allow-list.
-- Outside the `ship-slice` skill and a standalone `slice-builder` run, commit or push only when the user asks.
+- Outside the `ship-slice` skill, a standalone `slice-builder` run, and the spec-flow skills that own a
+  specific commit (`spec-implement` commits only the spec's status line; `spec-close` commits the
+  retirement after the user confirms), commit or push only when the user asks.
 
 ## Verification
 
@@ -179,6 +184,8 @@ Everything is committed; nothing needs installing beyond the CLI.
 └── settings.json               ← team permission allow/deny list; personal overrides go in the gitignored
                                    settings.local.json
 reviews/                        ← generated review reports (gitignored)
+docs/specs/                     ← feature specs, committed (see Spec-driven development)
+docs/adr/                       ← architecture decision records, written on demand by `spec-close`
 ```
 
 - **Never delete a superseded skill, agent, rule or instruction file** — move it to `.claude/archive/<kind>/`
@@ -220,6 +227,17 @@ Orchestrators and reviews (main-loop skills — a subagent cannot spawn agents):
   docs and against `src/` (code-example drift); report in `reviews/`. Read-only.
 - `/check` (command) — runs the verification sequence and stops at the first failure.
 
+Spec-driven development (main-loop skills — see **Spec-driven development**; like the orchestrators they
+carry no `evals/`, because they produce a spec and a delegation, not generated code):
+
+- `spec-create` — interviews, explores the solution read-only, writes `docs/specs/<name>.md` as `draft`,
+  then auto-refines it against `spec-reviewer` in advisory mode.
+- `spec-review` — the `draft → reviewed` gate; dispatches `spec-reviewer` in gate mode. Read-only itself.
+- `spec-implement` — turns an **approved** spec into a brief and delegates to `ship-slice` (default) or
+  `slice-builder`; maintains the spec's status and checkboxes. Writes no slice code.
+- `spec-close` — retires an **implemented** spec: harvests into `functional-plan.md` (and `docs/adr/` when
+  a lasting decision exists), archives the spec under `docs/specs/archive/`.
+
 ## Agents
 
 Spawn via the Agent tool (`subagent_type`). Agents run in their own context window and cannot spawn agents.
@@ -233,6 +251,12 @@ Spawn via the Agent tool (`subagent_type`). Agents run in their own context wind
 - `backend-reviewer-architecture` · `backend-reviewer-data-performance` · `backend-reviewer-correctness` ·
   `backend-reviewer-code-quality` · `backend-reviewer-tests` — read-only code-review lenses (`Read, Grep,
   Glob`) that return a JSON findings array; orchestrated by `backend-review`, usable standalone for one angle.
+- `spec-reviewer` — model-pinned (`sonnet`) reviewer of **one** spec in `docs/specs/`, across seven
+  dimensions. Gate mode appends `## Review Notes` and flips `status` to `reviewed`; advisory mode reports
+  only. Dispatched by `spec-review` and by `spec-create`'s refine pass. Reviews specs, never source code.
+  It deliberately carries no `-<lens>` suffix: unlike `backend-review` and `review-claude-setup`, the spec
+  gate is a **single-agent** family — one spec is small enough that fanning out would cost more than it
+  buys, and the seven dimensions stay in one file.
 - `claude-setup-reviewer-skills` · `claude-setup-reviewer-agents` · `claude-setup-reviewer-config` ·
   `claude-setup-reviewer-consistency` · `claude-setup-reviewer-placement` ·
   `claude-setup-reviewer-code-examples` — read-only lenses over the Claude Code setup; orchestrated by
@@ -251,6 +275,18 @@ local verification sequence (see **Verification**) before opening a PR.
 `.claude/functional-plan.md` holds the domain model, API endpoints, business rules, and seed data. Read it
 whenever you build, review, or reason about a feature. It is a plain pointer rather than an `@` include on
 purpose: the spec is situational, and the skills and agents that need it already read it themselves.
+
+## Spec-driven development
+
+Non-trivial features are specified in `docs/specs/` before they are built:
+`spec-create` → `draft` → `spec-review` → `reviewed` → **(you set `approved` by hand)** → `spec-implement`
+→ `implemented` → `spec-close`. Specs are ephemeral working artifacts; what lasts is harvested into
+`.claude/functional-plan.md` (and `docs/adr/`) when the spec is closed.
+
+`docs/specs/README.md` is the source of truth for the statuses, filename and frontmatter conventions and
+the `TO CONFIRM:` marker — read it when you touch a spec. Two things matter session-wide: **`approved` is
+the one transition no skill makes for you**, and **a small, obvious change needs no spec** — go straight
+to `ship-slice` or a single task-skill.
 
 ## Scope
 
