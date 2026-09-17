@@ -1,5 +1,5 @@
 ---
-status: implementing
+status: implemented
 issue: 8
 created: 2026-09-17
 ---
@@ -218,15 +218,15 @@ spec, so the observation survives): `HikeLog.Notes` is
 2000 for HikeLog and align both sides.
 
 ## Implementation tasks
-- [ ] Domain: add `Stage.Notes` (`string?`) + `StageConfiguration` `HasMaxLength(2000)`
-- [ ] Migration: `AddNotesToStage`
-- [ ] Command: AddStage — record, validator rule, handler copy
-- [ ] Command: UpdateStage — record, validator rule, handler assignment
-- [ ] Query: GetStage — `StageDto` + handler
-- [ ] Query: GetStagesByRoute — projection
-- [ ] Api: `Models.cs`, `MappingExtensions.cs`, the two inline `StageResponse` constructions in `StagesController`
-- [ ] DI registration — no change (verify build)
-- [ ] Tests: unit updates + new scenarios, `StageFaker`, Tier 0, Tier 3
+- [x] Domain: add `Stage.Notes` (`string?`) + `StageConfiguration` `HasMaxLength(2000)`
+- [x] Migration: `AddNotesToStage`
+- [x] Command: AddStage — record, validator rule, handler copy
+- [x] Command: UpdateStage — record, validator rule, handler assignment
+- [x] Query: GetStage — `StageDto` + handler
+- [x] Query: GetStagesByRoute — projection
+- [x] Api: `Models.cs`, `MappingExtensions.cs`, the two inline `StageResponse` constructions in `StagesController`
+- [x] DI registration — no change (verify build)
+- [x] Tests: unit updates + new scenarios, `StageFaker`, Tier 0, Tier 3
 
 ## Review Notes
 
