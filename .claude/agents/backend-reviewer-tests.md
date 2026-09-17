@@ -19,6 +19,11 @@ The orchestrator's prompt will include:
 
 Production files in scope are there only so you can judge whether a handler, validator or endpoint has a corresponding test. Do not report production-code issues; other lenses cover those.
 
+Two hard constraints of this repo that shape almost every finding: **validators are `internal` and no
+assembly grants `InternalsVisibleTo`**, so they cannot be tested directly; and **Bogus is referenced only
+by `HikingLog.IntegrationTests`**, so a unit test may not use `Faker<T>`. Verify both against the `.csproj`
+files rather than assuming, then hold the tests to them.
+
 ## Scan checklist
 
 ### Structure and naming
@@ -37,7 +42,10 @@ Missing coverage is a finding when a production construct in scope has no corres
 - **Command handlers** — unit tests for the valid path, the validation-failed path, and every not-found path the signature declares (entity itself; parent for child Add/Update). At least the feature's Add handler also has a Tier 3 test under `Consumers/`.
 - **Single-item query handlers** — found and not-found unit tests.
 - **Collection query handlers** — cannot be unit-tested (see below); require a seeded Tier 0 test instead.
-- **Validators** — a `<Command>ValidatorTests` class with one negative test per rule and one happy path.
+- **Validators** — validators are `internal sealed` and **no project grants `InternalsVisibleTo` to
+  `HikingLog.Application.Tests`**, so a `<Command>ValidatorTests` class cannot compile. Never report a
+  missing one, and flag any attempt to add one. Validation is covered by the handler's validation-failed
+  unit test plus the endpoint's Tier 0 400 test; report a gap only when one of those two is missing.
 - **Endpoints** — a Tier 0 class per endpoint with every status code the verb can return: GET collection 200; GET single 200/404; POST 201/400 (+404 for a child); PUT 200/400/404; DELETE 204/404.
 - **401/403 tests are a finding today**: authentication is out of scope, so they cannot pass.
 
@@ -55,7 +63,7 @@ Missing coverage is a finding when a production construct in scope has no corres
 
 ## Severity rubric
 
-- **CRITICAL** — a command handler, validator or endpoint in scope with no test at all; a faker using `RuleFor` on a positional record or a unit test running `ToListAsync` against a substituted `DbSet` (fails at runtime); a 401/403 test against the unauthenticated API; a test with no assertion.
+- **CRITICAL** — a command handler or endpoint in scope with no test at all; a faker using `RuleFor` on a positional record, a unit test running `ToListAsync` against a substituted `DbSet`, or a `ValidatorTests` class instantiating an `internal` validator (each fails at build or run time); a 401/403 test against the unauthenticated API; a test with no assertion; a unit test using Bogus in a project that does not reference it.
 - **SIGNIFICANT** — a missing not-found or validation-failed path; a Tier 0 class missing a required status code; a filter endpoint covered by a status-only test; command-handler test without the side-effect assertion; mocking `HikingLogDbContext` or using Moq; `IAsyncLifetime` re-implemented in a test class.
 - **MINOR** — bad test name; `Received` noise; missing `[Theory]` for boundary values; missing XML docs on a test class.
 

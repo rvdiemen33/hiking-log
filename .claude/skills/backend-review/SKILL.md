@@ -78,7 +78,7 @@ Cheap `Grep` passes on the resolved list:
 | Async I/O | `\basync\s\|\bawait\s\|\bTask<` |
 | Handlers/CQRS | `ICommandHandler<\|IQueryHandler<\|AbstractValidator<` |
 
-Skip rules: always run architecture, correctness and code-quality. Skip data-performance only if BOTH EF and async signals are absent. Skip tests if no test files are in scope **and** no handler/validator/controller is in scope (a new handler without tests is exactly what the tests lens must catch — when production handlers are in scope, also hand the lens the matching `tests/` paths via `Glob` so it can judge coverage). Record run/skip with whichever task-list tool the session offers (`TodoWrite`, or `TaskCreate`/`TaskUpdate`) — one item per lens, skipped ones with reason. If the session has no such tool, state the run/skip list in your reply instead.
+Skip rules: always run architecture, correctness and code-quality. Skip data-performance only if BOTH EF and async signals are absent. Skip tests if no test files are in scope **and** no handler/validator/controller is in scope (a new handler without tests is exactly what the tests lens must catch — when production handlers are in scope, also hand the lens the matching `tests/` paths via `Glob` so it can judge coverage). Record run/skip with `TodoWrite` — one item per lens, skipped ones with reason. If the session offers no task-list tool, state the run/skip list in your reply instead.
 
 ## Phase 4 — Fan out (single message, parallel)
 

@@ -106,34 +106,22 @@ dotnet user-secrets set "ConnectionStrings:HikingLog" "Server=localhost;Database
 
 ## Key patterns (details in `.claude/rules/backend/`)
 
-Path-scoped rules load automatically when you read or edit a matching file; when you orchestrate from the
-main loop before touching any file, read them explicitly. One line each here — the rule file is the source
-of truth.
+Each rule below is the source of truth for its layer and loads automatically when you read or edit a
+matching file. When you orchestrate from the main loop before touching any file, read the relevant one
+explicitly.
 
-- **CQRS** — `backend-cqrs.md` (`src/HikingLog.Application/**`). Vertical slice per feature; one file holds
-  record + validator + handler (commands) or record + DTO + handler (queries); handlers inject
-  `IHikingLogDataContext` and run their validator explicitly; `OneOf` results — top-level Add
-  `OneOf<T, ValidationFailed>`, child Add / Update `OneOf<T, ValidationFailed, NotFound>`, Delete
-  `OneOf<Success, NotFound>` (no validator), Get single `OneOf<TDto, NotFound>`, Get collection
-  `IReadOnlyList<TDto>`; never exceptions for expected failures; handlers and validators registered
-  manually in `AddApplication()`.
-- **Controllers** — `backend-controllers.md` (`src/HikingLog.Api/**`). Typed handler injection via the primary
-  constructor (never IMediator); request/response records plus hand-written mapping extensions per feature;
-  200 GET/PUT · 201 POST (`CreatedAtAction`) · 204 DELETE · 400 validation (`ValidationProblem`) · 404 not
-  found, each mapped from a `OneOf` arm; collection GETs never 404.
-- **Persistence** — `backend-persistence.md` (`src/HikingLog.Domain/**`, `src/HikingLog.Infrastructure/**`).
-  Plain entities with navigations on both sides; one `IEntityTypeConfiguration<T>` per entity
-  (`HasMaxLength` on every string, `HasPrecision` on every decimal, enums as strings, each relationship
-  configured once on the parent side); expression-bodied `DbSet`s on context and interface; migrations only
-  via `dotnet ef`.
+- **CQRS** — `backend-cqrs.md` (`src/HikingLog.Application/**`): slice layout, the one-file command/query
+  shape, `OneOf` result contracts per operation, validators, manual DI registration.
+- **Controllers** — `backend-controllers.md` (`src/HikingLog.Api/**`): typed handler injection, API models
+  and mapping extensions, the status code each `OneOf` arm maps to.
+- **Persistence** — `backend-persistence.md` (`src/HikingLog.Domain/**`, `src/HikingLog.Infrastructure/**`):
+  entity shape, Fluent API conventions, relationship ownership, DbSet style (expression-bodied on the
+  context, plain `DbSet<T> X { get; }` on the interface), migrations, seed data.
 - **Unit tests** — `backend-unit-testing.md` (`tests/HikingLog.Application.Tests/**`,
-  `tests/HikingLog.Api.Tests/**`). xUnit + NSubstitute + Bogus; substitute `IHikingLogDataContext`; assert the
-  `OneOf` arm and the side effect; collection handlers (`ToListAsync`) are not unit-testable against a
-  substituted `DbSet` — cover them with Tier 0/Tier 3.
-- **Integration tests** — `backend-integration-testing.md` (`tests/HikingLog.IntegrationTests/**`).
-  Testcontainers SQL Server + Respawn; Tier 0 (HTTP contract, every status code per verb, behavioural filter
-  tests) and Tier 3 (handler resolved from DI against the real database); Bogus fakers with
-  `CustomInstantiator`. Test projects mirror `src/` one-to-one.
+  `tests/HikingLog.Api.Tests/**`): xUnit and NSubstitute only, naming, stubbing shapes, and what cannot be
+  unit-tested here (collection handlers, and validators, which are `internal`).
+- **Integration tests** — `backend-integration-testing.md` (`tests/HikingLog.IntegrationTests/**`):
+  Tier 0 and Tier 3, required status coverage, behavioural filter tests, Bogus fakers.
 
 ## Coding standards
 
@@ -156,7 +144,7 @@ Everything is committed; nothing needs installing beyond the CLI.
 ```
 .claude/
 ├── rules/backend/*.md          ← path-scoped conventions (`paths:` frontmatter), loaded on demand
-├── skills/<name>/SKILL.md      ← task-skills, orchestrators, review entry points (evals/ next to each)
+├── skills/<name>/SKILL.md      ← task-skills, orchestrators, review entry points (task-skills carry evals/)
 ├── agents/*.md                 ← slice-builder + read-only review lenses (spawned via the Agent tool)
 ├── commands/check.md           ← `/check` — the verification sequence
 ├── functional-plan.md          ← domain spec, always loaded (see Functional plan)
@@ -167,10 +155,11 @@ reviews/                        ← generated review reports (gitignored)
 ```
 
 - **Never delete a superseded skill, agent, rule or instruction file** — move it to `.claude/archive/<kind>/`
-  and add a row to `.claude/archive/README.md` naming its replacement.
+  (`agents/`, `skills/<name>/`, `rules/`; instruction files go at the archive root) and add a row to
+  `.claude/archive/README.md` naming its replacement.
 - Eval workspaces (`.claude/skills/*-workspace/`) and skill-creator artifacts are gitignored.
 - Use Grep/Glob for discovery; read a file whole only when you are about to edit it.
-- After changing any skill, agent, rule, or instruction file, run `/review-claude-setup` (the `ship-slice`
+- After changing any skill, agent, rule, slash command, or instruction file, run `/review-claude-setup` (the `ship-slice`
   skill does this in its step 4).
 
 ## Skills
@@ -232,7 +221,9 @@ local verification sequence (see **Verification**) before opening a PR.
 
 ## Functional plan
 
-See @.claude/functional-plan.md for the domain model, API endpoints, business rules, and seed data.
+`.claude/functional-plan.md` holds the domain model, API endpoints, business rules, and seed data. Read it
+whenever you build, review, or reason about a feature. It is a plain pointer rather than an `@` include on
+purpose: the spec is situational, and the skills and agents that need it already read it themselves.
 
 ## Scope
 

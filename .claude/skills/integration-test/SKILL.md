@@ -21,6 +21,11 @@ Only Tier 0 and Tier 3 are relevant for this project (no messaging).
 | 0 | HTTP contract | Correct status code, body, and content-type? |
 | 3 | Handler + database | Does the handler persist/mutate data correctly? |
 
+**`.claude/rules/backend/backend-integration-testing.md` is the source of truth for the conventions**
+(tier definitions, folder structure, required status coverage, filter coverage, faker rules). It loads
+automatically whenever you touch `tests/HikingLog.IntegrationTests/**`. This skill is the procedure and the
+worked examples; where the two ever disagree, the rule wins and the skill needs fixing.
+
 ---
 
 ## Project structure
@@ -32,6 +37,8 @@ tests/HikingLog.IntegrationTests/
 ├── Infrastructure/
 │   ├── HikingTestWebApplicationFactory.cs
 │   └── IntegrationTest.cs
+├── Seeding/
+│   └── DataSeederTests.cs   ← covers Infrastructure/Data/DataSeeder
 └── <Feature>/
     ├── Fakers/        ← Bogus builders
     ├── Endpoints/     ← Tier 0 tests
@@ -76,11 +83,16 @@ One class per endpoint. Naming convention: `<Verb><Feature>Tests` — e.g. `Post
 |------|---------------|-------|
 | GET collection | 200 | 403 once auth is active |
 | GET single | 200, 404 | 403 once auth is active |
-| POST | 201, 400 | 403 once auth is active |
+| POST | 201, 400 (+404 for a child whose parent may be missing) | 403 once auth is active |
 | PUT | 200, 400, 404 | 403 once auth is active |
 | DELETE | 204, 404 | 403 once auth is active |
 
-401 tests (no token, expired token) go in a separate `Authentication` class — not per endpoint.
+`POST /stages` and `POST /hikelogs` each return 404 when the parent does not exist, because their handlers
+carry a `NotFound` arm. That arm is a real controller branch and needs its own test.
+
+**Do not write 401 or 403 tests today.** Authentication is out of scope per `.claude/functional-plan.md`,
+so they cannot pass against this API. When JWT auth is added, 403 joins each verb above and 401
+(no / invalid / expired token) goes once into a separate `Authentication` class, never per endpoint.
 
 ### Behavioral coverage for query parameters and filters
 
@@ -242,10 +254,14 @@ Resolve the handler directly from DI — do NOT use the HTTP client.
 [Collection(nameof(HikingLogTier0Collection))]
 public class AddRouteHandlerTests(HikingTestWebApplicationFactory factory) : IntegrationTest(factory)
 {
+    // Hold the factory in a field. Using the primary-constructor parameter directly in a method body
+    // also captures it into this type's state while it is passed to the base constructor — CS9107.
+    private readonly HikingTestWebApplicationFactory _factory = factory;
+
     [Fact]
     public async Task Handle_WhenValid_PersistsRoute()
     {
-        using var scope = factory.Services.CreateScope();
+        using var scope = _factory.Services.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>>>();
 

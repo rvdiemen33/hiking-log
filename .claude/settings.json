@@ -17,14 +17,40 @@
       "Bash(git worktree*)",
       "Bash(git push*)",
       "Bash(dotnet ef migrations*)",
-      "Bash(dotnet ef database*)"
+      "Bash(dotnet ef database*)",
+      "PowerShell(dotnet build*)",
+      "PowerShell(dotnet test*)",
+      "PowerShell(dotnet format*)",
+      "PowerShell(dotnet run*)",
+      "PowerShell(git status*)",
+      "PowerShell(git log*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git branch*)",
+      "PowerShell(git switch*)",
+      "PowerShell(git checkout -b*)",
+      "PowerShell(git add*)",
+      "PowerShell(git commit*)",
+      "PowerShell(git stash*)",
+      "PowerShell(git worktree*)",
+      "PowerShell(git push*)",
+      "PowerShell(dotnet ef migrations*)",
+      "PowerShell(dotnet ef database*)"
     ],
     "deny": [
       "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push --force-with-lease*)",
       "Bash(git reset --hard*)",
       "Bash(git clean*)",
+      "Bash(rm -rf*)",
       "Bash(Remove-Item -Recurse*)",
-      "Bash(rm -rf*)"
+      "PowerShell(git push --force*)",
+      "PowerShell(git push -f*)",
+      "PowerShell(git push --force-with-lease*)",
+      "PowerShell(git reset --hard*)",
+      "PowerShell(git clean*)",
+      "PowerShell(rm -rf*)",
+      "PowerShell(Remove-Item -Recurse*)"
     ]
   }
 }

@@ -87,10 +87,11 @@ You (the main loop) own the working tree — the review tools do not write to it
 
 ## Progress tracking
 
-This is a long, multi-step orchestration. **Create a task list with `TaskCreate` at the start** — one
+This is a long, multi-step orchestration. **Create a task list with `TodoWrite` at the start** — one
 task per step (pre-flight, build, review loop, conditional Claude-setup review, completeness check, commit &
-push, docs sync, report) — and mark each `in_progress` when you start it and `completed` when it passes,
-with `TaskUpdate`. The review loop may take several rounds; reflecting that in the task gives the user
+push, docs sync, report) — and mark each `in_progress` when you start it and `completed` when it passes.
+If the session offers no task-list tool, report step transitions in your replies instead; do not drop the
+bookkeeping. The review loop may take several rounds; reflecting that in the task gives the user
 live visibility into where the gate is. Keep it lightweight — it is for the user's visibility, not a
 substitute for the per-step reporting below.
 
@@ -211,9 +212,9 @@ reserve it for a full abort. Then stop and report —
 including the finding text, the file/line it references, the fixes you attempted, and why they failed.
 
 ### 4. Conditional Claude-setup review (before commit)
-Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, `.claude/rules/**`, or instruction
-file (`CLAUDE.md`, `.claude/*.md`, `.claude/settings.json`) — detect via `git status --short` (includes
-untracked files). A normal slice touches none of these, so skip it then.
+Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, `.claude/rules/**`,
+`.claude/commands/**`, or instruction file (`CLAUDE.md`, `.claude/*.md`, `.claude/settings.json`) — detect
+via `git status --short` (includes untracked files). A normal slice touches none of these, so skip it then.
 
 If it did: run the **`review-claude-setup` skill** with scope **working tree**, apply confirmed fixes
 (CRITICAL/SIGNIFICANT), and repeat until clean (same convergence rule as step 3). Re-verify with the

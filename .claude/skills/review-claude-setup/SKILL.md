@@ -15,7 +15,7 @@ You delegate to six focused lens subagents (each is `Read, Grep, Glob` only):
 - `claude-setup-reviewer-placement` — artifact-type fitness: is each piece the right primitive in the right place
 - `claude-setup-reviewer-code-examples` — every code example and code claim verified against `src/` and `tests/` (the project-specific lens; it does not need `<DOCS>`)
 
-Eligible files (scope filter applied to every mode): under `.claude/` (excluding `.claude/skills/*-workspace/`, `.claude/worktrees/` and `.claude/archive/` — the archive holds superseded, inert artifacts), OR `.mcp.json`, OR the repo-root `CLAUDE.md`. Within `.claude/`, keep `*.md` and `*.json`. Output always goes to `reviews/` (gitignored). This skill **never edits**; the caller applies fixes.
+Eligible files (scope filter applied to every mode): under `.claude/` (excluding `.claude/skills/*-workspace/`, `.claude/worktrees/` and `.claude/archive/` — the archive holds superseded, inert artifacts), OR `.mcp.json`, OR `.gitignore` (it decides whether `settings.local.json` and `reviews/` stay untracked), OR the repo-root `CLAUDE.md`. Within `.claude/`, keep `*.md` and `*.json`. Output always goes to `reviews/` (gitignored). This skill **never edits**; the caller applies fixes.
 
 **If a lens agent is missing from the registry** — the usual cause is that its definition was created in *this* session and the agent registry has not picked it up yet — do not abandon the review. Use the **fallback**: spawn a read-only `Explore` agent per lens instead, inlining that lens's scan checklist, severity rubric and output schema (copy them from `.claude/agents/claude-setup-reviewer-<lens>.md`) into the prompt, and add a `"lens"` field to each finding object so you can still attribute them. You may merge several lenses into one fallback agent to save round trips. Say in the report header which mechanism ran (`lens agents` | `Explore fallback`). The registry normally catches up within the same session, so a later round can use the real lenses.
 
@@ -62,7 +62,7 @@ Default to **filter-and-read mode** so you do not pull every file into the main 
 
 ## Phase 4 — Decide which lenses run
 
-Run a lens only if its artifacts are in scope; **consistency, placement and code-examples always run** (a change anywhere can break a cross-reference or a code claim). Track run/skip with whichever task-list tool the session offers (`TodoWrite`, or `TaskCreate`/`TaskUpdate`) — one item per lens, skipped ones noted with reason. If the session has no such tool, state the run/skip list in your reply instead; do not skip the bookkeeping.
+Run a lens only if its artifacts are in scope; **consistency, placement and code-examples always run** (a change anywhere can break a cross-reference or a code claim). Track run/skip with `TodoWrite` — one item per lens, skipped ones noted with reason. If the session offers no task-list tool, state the run/skip list in your reply instead; do not drop the bookkeeping.
 - skills → if any `.claude/skills/**` in scope
 - agents → if any `.claude/agents/*.md` in scope
 - config → if any `settings*.json` / `.mcp.json` in scope
@@ -116,7 +116,7 @@ Return ONLY a single fenced JSON code block — an array of finding objects. No 
 If nothing found, return [].
 
 ## Hard rules
-- Only report findings about files under .claude/, CLAUDE.md, and .mcp.json.
+- Only report findings about files under .claude/, CLAUDE.md, .mcp.json and .gitignore.
 - Judge against the <DOCS> block (or, for code examples, against the real code), not memory. If <DOCS> is silent on a point, do not invent a rule.
 - Read the files in your <FILES> list; cite a real file:line for every finding.
 - No soft language ("might", "could", "consider"). State what is wrong.

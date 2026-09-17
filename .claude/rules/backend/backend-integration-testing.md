@@ -11,7 +11,7 @@ Hiking-log has no messaging (no Wolverine, no RabbitMQ). Only two tiers are rele
 
 | Tier | Question | Speed |
 |------|----------|-------|
-| 0 — HTTP contract | Does the API return the correct status code, body, and auth response? | Fast |
+| 0 — HTTP contract | Does the API return the correct status code, body, and content-type? | Fast |
 | 3 — Handler with database | Does the handler process the command correctly and mutate the database? | Fast |
 
 ## Project structure
@@ -80,7 +80,7 @@ the API returns no 401/403 yet):
 |------|-----------------|
 | GET collection | 200 |
 | GET single | 200, 404 |
-| POST | 201, 400 |
+| POST | 201, 400 — **plus 404 for a child entity whose parent may be missing** (Stage, HikeLog) |
 | PUT | 200, 400, 404 |
 | DELETE | 204, 404 |
 
@@ -110,10 +110,14 @@ Calls the handler directly — resolve it from DI by its `ICommandHandler<,>` / 
 [Collection(nameof(HikingLogTier0Collection))]
 public class AddRouteHandlerTests(HikingTestWebApplicationFactory factory) : IntegrationTest(factory)
 {
+    // Hold the factory in a field. Using the primary-constructor parameter directly in a method body
+    // also captures it into this type's state while it is passed to the base constructor — CS9107.
+    private readonly HikingTestWebApplicationFactory _factory = factory;
+
     [Fact]
     public async Task Handle_WhenValid_PersistsRoute()
     {
-        using var scope = factory.Services.CreateScope();
+        using var scope = _factory.Services.CreateScope();
         var handler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AddRoute, OneOf<AddRouteResult, ValidationFailed>>>();
 
