@@ -16,8 +16,9 @@ using OneOf;
 /// <param name="DistanceKm">The new length in kilometres.</param>
 /// <param name="ElevationDifferenceM">The new elevation difference in metres.</param>
 /// <param name="Difficulty">The new difficulty level.</param>
+/// <param name="Notes">Optional personal note about the stage.</param>
 public record UpdateStage(int Id, int RouteId, int Number, string Name, string StartPoint, string EndPoint,
-    decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty);
+    decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty, string? Notes);
 
 /// <summary>Result returned after a stage is successfully updated.</summary>
 /// <param name="Id">The primary key of the updated stage.</param>
@@ -37,6 +38,7 @@ internal sealed class UpdateStageValidator : AbstractValidator<UpdateStage>
         RuleFor(x => x.DistanceKm).GreaterThan(0);
         RuleFor(x => x.ElevationDifferenceM).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Difficulty).IsInEnum();
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
 
@@ -74,6 +76,7 @@ public sealed class UpdateStageHandler(IHikingLogDataContext db, IValidator<Upda
         stage.DistanceKm = command.DistanceKm;
         stage.ElevationDifferenceM = command.ElevationDifferenceM;
         stage.Difficulty = command.Difficulty;
+        stage.Notes = command.Notes;
         await db.SaveChangesAsync(ct);
         return new UpdateStageResult(stage.Id);
     }

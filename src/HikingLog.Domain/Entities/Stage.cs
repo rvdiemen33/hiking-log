@@ -34,6 +34,9 @@ public class Stage
     /// <summary>Gets or sets the physical difficulty level of the stage.</summary>
     public Difficulty Difficulty { get; set; }
 
+    /// <summary>Gets or sets an optional personal note about the stage.</summary>
+    public string? Notes { get; set; }
+
     /// <summary>Gets the parent route this stage belongs to.</summary>
     public Route Route { get; init; } = null!;
 

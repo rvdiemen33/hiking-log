@@ -51,10 +51,32 @@ public class GetStagesByRouteTests(HikingTestWebApplicationFactory factory) : In
         Assert.Equal(new[] { 1, 2, 3 }, stages.Select(s => s.Number)); // ordered by Number
     }
 
+    /// <summary>GET /routes/{routeId}/stages returns each stage's own note, in Number order.</summary>
+    [Fact]
+    public async Task GetStagesByRoute_WhenStagesHaveMixedNotes_ReturnsNotesPerStage()
+    {
+        var client = CreateClient();
+
+        var routeId = (await (await client.PostAsJsonAsync("/routes", new RouteFaker().Generate()))
+            .Content.ReadFromJsonAsync<RouteResponse>())!.Id;
+
+        await client.PostAsJsonAsync("/stages", StageWithNumber(routeId, 1, "Let op: veerpont vaart niet in de winter"));
+        await client.PostAsJsonAsync("/stages", StageWithNumber(routeId, 2, null));
+
+        var stages = await client.GetFromJsonAsync<List<StageResponse>>($"/routes/{routeId}/stages");
+
+        Assert.NotNull(stages);
+        Assert.Equal(2, stages!.Count);
+        Assert.Equal(new[] { 1, 2 }, stages.Select(s => s.Number));
+        Assert.Equal("Let op: veerpont vaart niet in de winter", stages[0].Notes);
+        Assert.Null(stages[1].Notes);
+    }
+
     /// <summary>Builds a stage create request with a fixed sequence number for deterministic ordering assertions.</summary>
     /// <param name="routeId">The primary key of the parent route.</param>
     /// <param name="number">The sequence number to assign.</param>
+    /// <param name="notes">The optional note to assign; defaults to <c>null</c>.</param>
     /// <returns>A valid <see cref="CreateStageRequest"/>.</returns>
-    private static CreateStageRequest StageWithNumber(int routeId, int number)
-        => new(routeId, number, $"Etappe {number}", "Start", "Einde", 10m, 100m, Difficulty.Easy);
+    private static CreateStageRequest StageWithNumber(int routeId, int number, string? notes = null)
+        => new(routeId, number, $"Etappe {number}", "Start", "Einde", 10m, 100m, Difficulty.Easy, notes);
 }

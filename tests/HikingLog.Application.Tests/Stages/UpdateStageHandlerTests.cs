@@ -26,7 +26,7 @@ public class UpdateStageHandlerTests
     [Fact]
     public async Task Handle_WhenValidationFails_ReturnsValidationFailed()
     {
-        var command = new UpdateStage(1, 1, 1, string.Empty, "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy);
+        var command = new UpdateStage(1, 1, 1, string.Empty, "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy, null);
         _validator
             .ValidateAsync(command, Arg.Any<CancellationToken>())
             .Returns(new ValidationResult([new ValidationFailure("Name", "'Name' must not be empty.")]));
@@ -41,7 +41,7 @@ public class UpdateStageHandlerTests
     [Fact]
     public async Task Handle_WhenStageNotFound_ReturnsNotFound()
     {
-        var command = new UpdateStage(99, 1, 1, "Etappe 1", "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy);
+        var command = new UpdateStage(99, 1, 1, "Etappe 1", "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy, null);
         _validator
             .ValidateAsync(command, Arg.Any<CancellationToken>())
             .Returns(new ValidationResult());
@@ -61,7 +61,7 @@ public class UpdateStageHandlerTests
     [Fact]
     public async Task Handle_WhenRouteNotFound_ReturnsNotFound()
     {
-        var command = new UpdateStage(1, 99, 1, "Etappe 1", "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy);
+        var command = new UpdateStage(1, 99, 1, "Etappe 1", "Bergen", "Haarlem", 20m, 100m, Difficulty.Easy, null);
         _validator
             .ValidateAsync(command, Arg.Any<CancellationToken>())
             .Returns(new ValidationResult());
@@ -82,27 +82,70 @@ public class UpdateStageHandlerTests
         await _db.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>When the command is valid and the stage exists the handler updates and returns UpdateStageResult.</summary>
+    /// <summary>When the command is valid and the stage exists the handler updates the stage (including the note) and returns UpdateStageResult.</summary>
     [Fact]
     public async Task Handle_WhenValid_UpdatesStageAndReturnsResult()
     {
-        var existingStage = new Stage
-        {
-            Id = 1,
-            RouteId = 1,
-            Number = 1,
-            Name = "Oud",
-            StartPoint = "A",
-            EndPoint = "B",
-            DistanceKm = 10m,
-            ElevationDifferenceM = 50m,
-            Difficulty = Difficulty.Easy
-        };
-        var command = new UpdateStage(1, 1, 2, "Nieuw", "Bergen", "Haarlem", 25m, 200m, Difficulty.Hard);
+        var existingStage = ExistingStageWithNotes(null);
+        var command = new UpdateStage(1, 1, 2, "Nieuw", "Bergen", "Haarlem", 25m, 200m, Difficulty.Hard,
+            "Herberg onderweg gesloten op maandag");
+        StubValidationPasses(command);
+        StubStageAndParentRoute(existingStage);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsT0);
+        Assert.Equal("Nieuw", existingStage.Name);
+        Assert.Equal(25m, existingStage.DistanceKm);
+        Assert.Equal(Difficulty.Hard, existingStage.Difficulty);
+        Assert.Equal("Herberg onderweg gesloten op maandag", existingStage.Notes);
+        await _db.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>When the command carries a null note the handler clears an existing note.</summary>
+    [Fact]
+    public async Task Handle_WhenNotesIsNull_ClearsNotes()
+    {
+        var existingStage = ExistingStageWithNotes("oud");
+        var command = new UpdateStage(1, 1, 2, "Nieuw", "Bergen", "Haarlem", 25m, 200m, Difficulty.Hard, null);
+        StubValidationPasses(command);
+        StubStageAndParentRoute(existingStage);
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsT0);
+        Assert.Null(existingStage.Notes);
+        await _db.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Builds the stage the handler updates, carrying the given note.</summary>
+    /// <param name="notes">The note the stage already holds, or <see langword="null"/> when it has none.</param>
+    /// <returns>A stage with fixed values apart from its note.</returns>
+    private static Stage ExistingStageWithNotes(string? notes) => new()
+    {
+        Id = 1,
+        RouteId = 1,
+        Number = 1,
+        Name = "Oud",
+        StartPoint = "A",
+        EndPoint = "B",
+        DistanceKm = 10m,
+        ElevationDifferenceM = 50m,
+        Difficulty = Difficulty.Easy,
+        Notes = notes
+    };
+
+    /// <summary>Stubs the validator so it reports the given command as valid.</summary>
+    /// <param name="command">The command the handler will validate.</param>
+    private void StubValidationPasses(UpdateStage command) =>
         _validator
             .ValidateAsync(command, Arg.Any<CancellationToken>())
             .Returns(new ValidationResult());
 
+    /// <summary>Stubs the stage the handler finds, its parent route and a successful save.</summary>
+    /// <param name="existingStage">The stage FindAsync returns.</param>
+    private void StubStageAndParentRoute(Stage existingStage)
+    {
         var stages = Substitute.For<DbSet<Stage>>();
         stages.FindAsync(Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
               .Returns(new ValueTask<Stage?>(existingStage));
@@ -114,13 +157,5 @@ public class UpdateStageHandlerTests
         _db.Routes.Returns(routes);
 
         _db.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
-
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        Assert.True(result.IsT0);
-        Assert.Equal("Nieuw", existingStage.Name);
-        Assert.Equal(25m, existingStage.DistanceKm);
-        Assert.Equal(Difficulty.Hard, existingStage.Difficulty);
-        await _db.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

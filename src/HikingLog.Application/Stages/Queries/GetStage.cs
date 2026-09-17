@@ -19,8 +19,9 @@ public record GetStage(int Id);
 /// <param name="DistanceKm">The length in kilometres.</param>
 /// <param name="ElevationDifferenceM">The elevation difference in metres.</param>
 /// <param name="Difficulty">The difficulty level.</param>
+/// <param name="Notes">Optional personal note about the stage.</param>
 public record StageDto(int Id, int RouteId, int Number, string Name, string StartPoint, string EndPoint,
-    decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty);
+    decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty, string? Notes);
 
 /// <summary>Handles the <see cref="GetStage"/> query, returning the stage or <see cref="NotFound"/>.</summary>
 public sealed class GetStageHandler(IHikingLogDataContext db)
@@ -36,6 +37,6 @@ public sealed class GetStageHandler(IHikingLogDataContext db)
         }
 
         return new StageDto(stage.Id, stage.RouteId, stage.Number, stage.Name, stage.StartPoint,
-            stage.EndPoint, stage.DistanceKm, stage.ElevationDifferenceM, stage.Difficulty);
+            stage.EndPoint, stage.DistanceKm, stage.ElevationDifferenceM, stage.Difficulty, stage.Notes);
     }
 }

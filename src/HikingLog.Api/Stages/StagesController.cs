@@ -55,7 +55,8 @@ public sealed class StagesController(
         return result.Match<IActionResult>(
             r => CreatedAtAction(nameof(GetById), new { id = r.Id },
                 new StageResponse(r.Id, request.RouteId, request.Number, request.Name, request.StartPoint,
-                    request.EndPoint, request.DistanceKm, request.ElevationDifferenceM, request.Difficulty)),
+                    request.EndPoint, request.DistanceKm, request.ElevationDifferenceM, request.Difficulty,
+                    request.Notes)),
             v => ValidationProblem(v.ToModelStateDictionary()),
             _ => NotFound());
     }
@@ -74,7 +75,8 @@ public sealed class StagesController(
         var result = await updateHandler.Handle(request.ToCommand(id), ct);
         return result.Match<IActionResult>(
             r => Ok(new StageResponse(r.Id, request.RouteId, request.Number, request.Name, request.StartPoint,
-                request.EndPoint, request.DistanceKm, request.ElevationDifferenceM, request.Difficulty)),
+                request.EndPoint, request.DistanceKm, request.ElevationDifferenceM, request.Difficulty,
+                request.Notes)),
             v => ValidationProblem(v.ToModelStateDictionary()),
             _ => NotFound());
     }
