@@ -39,8 +39,10 @@ them field by field:
 4. **Ask only the genuine unclarities** (Phase 4). Anything you had to guess, and anything only the
    user can decide, gets the canonical marker **`TO CONFIRM: {question}`** — it is grep-able, and
    `spec-reviewer` escalates every surviving marker to a blocker, so an unconfirmed value can never
-   slip through the gate as prose.
+   slip through the gate as prose. When someone other than the user has to answer (an external
+   party, a data owner), append `(owner: {who})` so the reviewer can name them with the blocker.
 5. **Verify** the assembled understanding with the user before writing (Phase 5).
+6. **Commit the draft** the moment it is written and refined (Phase 8) — before any code exists.
 
 The phases list what a complete spec needs. Treat them as **what to populate, derived-first** — a
 checklist for you, not a questionnaire to read out.
@@ -55,7 +57,8 @@ One message, plain language, no stack vocabulary:
 >
 > 1. **What do you want to happen, and why?** What is the feature, which problem does it solve, and
 >    which data does it involve?
-> 2. **Issue number** — the GitHub issue, if there is one (e.g. `17`). Optional; say 'none'.
+> 2. **Issue number** — the GitHub issue, if there is one (e.g. `17`), ideally created with the
+>    *User story* form so it already passed the Definition of Ready. Optional; say 'none'.
 > 3. **Rough scope** — a new entity, or an addition to Routes / Stages / HikeLogs / Statistics?
 >    A rough answer is fine; the exploration confirms it."
 
@@ -183,7 +186,7 @@ created: {TODAY_ISO_DATE}
 ## Impact / Affected areas
 _From codebase exploration on {TODAY_ISO_DATE}._
 - **Reference slice mirrored**: {feature — path}
-- **Existing code this feature touches**: {e.g. HikingLogDbContext, DataSeeder, StatisticsController, shared DTOs — or "none identified"}
+- **Existing code this feature touches**: {e.g. HikingLogDbContext, DataSeeder, RoutesController, shared DTOs — or "none identified"}
 - **Layers that already exist** (spec-implement passes these on as the skip-list): {entity | Fluent config | DbSet | migration | Application slice | controller | DI — or "none"}
 - **Collisions / conflicts**: {none | the collision and the resolution chosen}
 
@@ -268,7 +271,7 @@ After writing, run `spec-reviewer` against the spec and **fold its findings back
    and adjusted the draft.
 
    **Fallback if `spec-reviewer` is not in the registry** (which happens when its definition was
-   created in this same session): spawn a read-only `Explore` agent instead, inlining the seven
+   created in this same session): spawn a read-only `Explore` agent instead, inlining the eight
    dimensions and the severity scale from `.claude/agents/spec-reviewer.md`, and say in your report
    that the fallback ran. Never skip the refine pass because the agent is missing.
 
@@ -282,8 +285,9 @@ After writing, run `spec-reviewer` against the spec and **fold its findings back
      slice and the Phase 2 exploration — the same grounding the rest of the spec uses.
    - **Not derivable** — if the fix needs a decision only the user can make, **do not fabricate it**.
      Convert the finding into a precise `TO CONFIRM: {question}` marker in the exact section it
-     concerns. The finding still lands *in the spec*, and the surviving marker becomes a blocker at
-     the gate — by design.
+     concerns, with `(owner: {who})` when the answer has to come from someone other than the user.
+     The finding still lands *in the spec*, and the surviving marker becomes a blocker at the gate —
+     by design.
 
 3. **Re-run the advisory reviewer once** to confirm the auto-fixable findings are gone, and process
    any new derivable finding the same way. Stop after at most two refine passes; whatever is still
@@ -291,11 +295,35 @@ After writing, run `spec-reviewer` against the spec and **fold its findings back
 
 4. **Grep the spec for `TO CONFIRM:`** and list every hit to the user as its own bullet.
 
-Then report (fill the bullets from step 4; write "None — the draft is fully resolved." when there are
-no markers):
+---
 
-> "Spec written to `docs/specs/{name}.md` (`status: draft`) and auto-refined against the
-> spec-reviewer: {N} finding(s) resolved directly in the spec.
+## Phase 8 — Commit the draft
+
+The spec is committed **before any code exists**, so the history proves the design predates the
+implementation (see `docs/specs/README.md`). This is one of the spec-flow commits `CLAUDE.md`
+exempts from "commit only when the user asks"; it never needs a confirmation.
+
+1. `git branch --show-current` and pick the branch the spec lives on — the slice later shares it, so
+   spec and implementation end up in one branch and one PR:
+   - already on `feature/{slug}`: stay;
+   - on `master`: `git checkout -b feature/{slug}`, or plain `git checkout feature/{slug}` when
+     `git rev-parse --verify --quiet feature/{slug}` shows the branch already exists;
+   - on any other branch (another feature, a fix branch): the draft never lands there — `spec-implement`
+     and `ship-slice` only know `master` and `feature/{slug}`. Ask once (AskUserQuestion): create
+     `feature/{slug}` from `master` now (`git checkout -b feature/{slug} master`; the untracked spec
+     travels along, and so do any uncommitted changes, still uncommitted), or **stop** and leave the
+     draft uncommitted so the user can switch branches and rerun Phase 8. Never commit on the other
+     branch.
+2. Stage **only the spec**: `git add docs/specs/{name}.md`. Never `git add -A` — the user may have
+   unrelated work in the tree.
+3. Commit: `docs(spec): add {slug} draft`. Do not push; the user decides when the branch goes up.
+
+Then report (fill the bullets from Phase 7 step 4; write "None — the draft is fully resolved." when
+there are no markers; when the user chose to stop in step 1, replace the "committed on" clause with
+"**not committed** — switch to `master` or `feature/{slug}` and rerun Phase 8"):
+
+> "Spec written to `docs/specs/{name}.md` (`status: draft`), auto-refined against the spec-reviewer
+> ({N} finding(s) resolved directly in the spec) and committed on `feature/{slug}`.
 >
 > **{N} item(s) need your decision** (surviving `TO CONFIRM` markers):
 > - [{section}] {question}
@@ -315,6 +343,6 @@ no markers):
   the code, and `spec-implement` builds it.
 - **Explore read-only.** The exploration agents are `Explore`; they never edit.
 - **Never invent a value silently** — derive it from the codebase, or mark it `TO CONFIRM:`.
-- **Do not commit.** Per `CLAUDE.md`, commit only when the user asks; the spec is a working file until
-  they decide otherwise.
+- **Commit only the spec, and only in Phase 8.** The draft commit is the one commit this skill owns;
+  it stages nothing else and never pushes.
 - Stay within this repository (`C:\github\hiking-log`) and add no packages.

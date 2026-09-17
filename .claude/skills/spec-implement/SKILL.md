@@ -66,8 +66,10 @@ user already stated which route they want:
 `ship-slice` requires a **clean working tree** and a `feature/<...>` branch, so do both before
 spawning it:
 
-1. `git branch --show-current`. If you are on `master`, create the branch from the spec's slug:
-   `git checkout -b feature/{slug}`. If you are already on a suitable `feature/<...>` branch, stay.
+1. `git branch --show-current`. If you are on `master`, switch to the spec's branch: `spec-create`
+   normally created it when it committed the draft, so `git checkout feature/{slug}` when
+   `git rev-parse --verify --quiet feature/{slug}` finds it, else `git checkout -b feature/{slug}`.
+   If you are already on a suitable `feature/<...>` branch, stay.
 2. If the working tree is dirty for unrelated reasons, stop and report — do not stash the user's work.
 3. Set `status: implementing` in the spec frontmatter and commit **only that file**:
    `docs(spec): mark {slug} implementing`. This keeps the tree clean for `ship-slice` and makes the
