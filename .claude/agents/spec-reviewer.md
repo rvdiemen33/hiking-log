@@ -43,6 +43,13 @@ Every field the task-skills need must be present and non-empty.
   filters, and its DTO/result fields.
 - **Api**: route template and verb per operation.
 - **Tests**: which unit, Tier 0 and Tier 3 tests the slice owes.
+- **Traceability**: every command, query and business rule (and the entity, when there is a Domain
+  section) carries a unique `R{n}`; every acceptance scenario carries `AC{n}.{m}` under its
+  requirement's `n`; endpoints cite their handler's id. Missing, duplicate or non-contiguous ids are a
+  blocker — `spec-verifier` traces the delivered code back to these ids and cannot verify what it cannot
+  address. A spec that carries **no** `R`/`AC` id at all predates the template — skip the check for it
+  and record one warning (`spec-verifier` derives ids for such a spec); a spec with some ids but gaps
+  or duplicates gets the blocker.
 
 A spec that only touches the Application and Api layers legitimately omits the Domain section — skip
 that dimension rather than reporting it.
@@ -118,8 +125,10 @@ Judge against `backend-unit-testing.md` and `backend-integration-testing.md`:
   asserts the count *and* that every returned row satisfies the filter — a status-only test passes even
   when the filter is inverted.
 - **Tier 3**: at minimum the feature's Add handler.
-- Acceptance scenarios must be concrete Given/When/Then with real values; a command or endpoint without
+- Acceptance scenarios must be concrete Given/When/Then with real values; a command or query without
   one is a warning.
+- Every `AC` id is named by at least one line of `## Tests` (`— covers AC2.1, AC2.2`); a scenario no
+  test promises to cover is a warning — `spec-verifier` will report it as untested after the build.
 
 Do **not** report these as gaps — they are project constraints, not omissions:
 

@@ -16,8 +16,9 @@ spec-create  →  draft  →  spec-review  →  reviewed  →  (human sets appro
                                                               │
                                                               ▼
                                                       spec-implement
-                                                     (ship-slice builds,
-                                                      reviews, commits)
+                                                  (ship-slice builds, reviews,
+                                                   spec-verify checks the code
+                                                   against the spec, commits)
                                                               │
                                               implementing → implemented
                                                               │
@@ -55,6 +56,12 @@ recommended, not required — a small feature can go straight to `spec-create` w
   is grep-able and `spec-reviewer` escalates every surviving one to a blocker, so an unconfirmed value
   cannot reach `approved` disguised as prose. Append `(owner: {who})` when someone other than the
   person running the flow has to answer — the reviewer lists the owner with the blocker.
+- **Requirements carry ids.** Every requirement is an `R{n}` — the entity and its persistence, each
+  command, each query, each business rule; endpoints share their handler's id — and every acceptance
+  scenario an `AC{n}.{m}` under its requirement. `## Tests` names the `AC` ids each test covers.
+  `spec-verifier` traces the delivered code and tests back to these ids, so they are **stable**: a
+  reopened spec appends new ids and strikes dropped ones (`~~R4~~ — dropped, see Review Notes`), it
+  never renumbers. A spec written before ids existed is verified with derived ids; the report says so.
 - **Every spec has an `## Impact / Affected areas` section.** It is what `spec-reviewer`'s eighth
   dimension judges: what happens to existing data, existing behaviour and existing clients. A
   greenfield slice writes "none identified"; a change to an existing table, handler or endpoint spells
@@ -81,6 +88,7 @@ Reopens-Spec: docs/specs/{name}.md
 | Situation | Status | What happens |
 |---|---|---|
 | Implementation finds the spec is wrong or incomplete | `implementing → draft` | `spec-implement` stops; fix the spec, then `spec-review` again |
+| `spec-verify` (in `ship-slice`'s review loop) classifies a finding as **design** — an unspecified change, a contract the spec got wrong, a missed edge case | `implementing → draft` | The skill that observed it (`ship-slice`, or `spec-implement` on its `slice-builder`-only route) commits the reopen and stops; the slice stays as evidence |
 | Code review or the PR turns up a **design** finding (wrong abstraction, missed edge case) | `implemented → draft` | Fix the spec, not the code — a code patch for a design finding hides the gap |
 | The PR is rejected on **mechanics** (failing test, naming, null check) | stays `implemented` | Fix the code on the branch; nothing is reopened |
 | The reviewer rejects the approach, not a detail | stays `draft` | Rewrite via `spec-create`, keep the filename |
@@ -92,5 +100,7 @@ says the spec phase is letting things through, not that the build phase is weak.
 
 ## Skills
 
-`spec-create` · `spec-review` · `spec-implement` · `spec-close` — see `.claude/skills/` and the
-**Spec-driven development** section in `CLAUDE.md`.
+`spec-create` · `spec-review` · `spec-implement` · `spec-verify` · `spec-close` — see `.claude/skills/`
+and the **Spec-driven development** section in `CLAUDE.md`. Two agents carry the judgment:
+`spec-reviewer` judges the spec (before code), `spec-verifier` judges the code against the spec (after
+the build). Both are model-pinned.

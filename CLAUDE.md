@@ -217,8 +217,9 @@ Task-skills (one layer each):
 Orchestrators and reviews (main-loop skills — a subagent cannot spawn agents):
 
 - `ship-slice` — delivers a feature end to end **with the quality gate**: spawns `slice-builder` (build only, no
-  commit) → `backend-review` over the uncommitted working tree (apply confirmed fixes, re-verify, loop to
-  convergence) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
+  commit) → `backend-review` (+ `spec-verify` when a spec drives the slice) over the uncommitted working
+  tree (apply confirmed fixes, re-verify, loop to convergence; a `spec-verify` design finding reopens the
+  spec and stops) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
   completeness check vs `functional-plan.md` → commits the reviewed slice → docs sync → reports the
   ready-to-run `gh pr create`. Use for "build, review and ship X"; use `slice-builder` for a plain build, or a
   single task-skill for one layer.
@@ -237,7 +238,12 @@ carry no `evals/`, because they produce a spec and a delegation, not generated c
 - `spec-review` — the `draft → reviewed` gate; dispatches `spec-reviewer` in gate mode and commits the
   gate result.
 - `spec-implement` — turns an **approved** spec into a brief and delegates to `ship-slice` (default) or
-  `slice-builder`; maintains the spec's status and checkboxes. Writes no slice code.
+  `slice-builder`; maintains the spec's status and checkboxes (and reopens the spec on a design finding
+  on its `slice-builder`-only route). Writes no slice code.
+- `spec-verify` — lays the slice diff against its spec via the `spec-verifier` agent: missing or
+  contradicted `R` requirements, untested `AC` scenarios, unspecified changes — each classified
+  **mechanical** (fix the code) or **design** (reopen the spec). Runs inside `ship-slice`'s review loop
+  when a spec drives the slice, and standalone. Read-only.
 - `spec-close` — retires an **implemented** spec: harvests into `functional-plan.md` (and `docs/adr/` when
   a lasting decision exists), archives the spec under `docs/specs/archive/`.
 
@@ -261,6 +267,10 @@ Spawn via the Agent tool (`subagent_type`). Agents run in their own context wind
   It deliberately carries no `-<lens>` suffix: unlike `backend-review` and `review-claude-setup`, the spec
   gate is a **single-agent** family — one spec is small enough that fanning out would cost more than it
   buys, and the eight dimensions stay in one file.
+- `spec-verifier` — model-pinned (`opus`) verifier of the **code diff against one spec** (`Read, Grep,
+  Glob, Bash` — Bash for read-only `git status`/`git diff` only). Returns coverage per `R`/`AC`
+  id plus findings classified mechanical or design; dispatched by `spec-verify`. It verifies code against
+  a spec — `backend-review` judges code against the rules, `spec-reviewer` judges the spec itself.
 - `claude-setup-reviewer-skills` · `claude-setup-reviewer-agents` · `claude-setup-reviewer-config` ·
   `claude-setup-reviewer-consistency` · `claude-setup-reviewer-placement` ·
   `claude-setup-reviewer-code-examples` — read-only lenses over the Claude Code setup; orchestrated by
@@ -284,7 +294,7 @@ purpose: the spec is situational, and the skills and agents that need it already
 
 Non-trivial features are specified in `docs/specs/` before they are built:
 `spec-create` → `draft` → `spec-review` → `reviewed` → **(you set `approved` by hand)** → `spec-implement`
-→ `implemented` → `spec-close`. Specs are ephemeral working artifacts; what lasts is harvested into
+(whose `ship-slice` review loop runs `spec-verify`) → `implemented` → `spec-close`. Specs are ephemeral working artifacts; what lasts is harvested into
 `.claude/functional-plan.md` (and `docs/adr/`) when the spec is closed.
 
 A spec normally starts from a GitHub issue filed with the **User story** form

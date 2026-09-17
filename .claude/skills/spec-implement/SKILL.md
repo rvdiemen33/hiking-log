@@ -53,8 +53,8 @@ subject (`CLAUDE.md` prescribes Conventional Commits).
 Default to the **full quality gate**. Ask once with AskUserQuestion, and skip the question when the
 user already stated which route they want:
 
-- **`ship-slice` (recommended)** — build (no commit) → five-lens `backend-review` over the working
-  tree → completeness check → single reviewed `feat(...)` commit → push → docs sync. This is the
+- **`ship-slice` (recommended)** — build (no commit) → five-lens `backend-review` + `spec-verify` over
+  the working tree → completeness check → single reviewed `feat(...)` commit → push → docs sync. This is the
   route spec-driven development is for: nothing known-bad reaches a commit.
 - **`slice-builder` only** — build, self-verify, commit and push without the review gate. Faster, no
   quality gate. Choose it only when the user explicitly asks.
@@ -67,8 +67,9 @@ user already stated which route they want:
 spawning it:
 
 1. `git branch --show-current`. If you are on `master`, switch to the spec's branch: `spec-create`
-   normally created it when it committed the draft, so `git checkout feature/{slug}` when
-   `git rev-parse --verify --quiet feature/{slug}` finds it, else `git checkout -b feature/{slug}`.
+   normally created it when it committed the draft, so `git switch feature/{slug}` when
+   `git branch --list feature/{slug}` prints it, else `git checkout -b feature/{slug}` (both forms are
+   in the permission allow-list; plain `git checkout <branch>` and `git rev-parse` are not).
    If you are already on a suitable `feature/<...>` branch, stay.
 2. If the working tree is dirty for unrelated reasons, stop and report — do not stash the user's work.
 3. Set `status: implementing` in the spec frontmatter and commit **only that file**:
@@ -90,7 +91,7 @@ Translate the spec into one brief. The mapping is mechanical:
 | Queries: names, kinds, filters, DTO fields | `## Application → Queries` |
 | Controller, route templates, verbs, status codes, request/response models | `## Api` |
 | Business rules and the layer that enforces them | `## Business rules` |
-| Required unit / Tier 0 / Tier 3 coverage, acceptance scenarios | `## Tests` + the per-command Acceptance blocks |
+| Required unit / Tier 0 / Tier 3 coverage, acceptance scenarios — **with their `R`/`AC` ids** | `## Tests` + the per-command and per-query Acceptance blocks |
 | Layers to **skip** because they already exist | `## Impact / Affected areas → Layers that already exist` |
 
 Then delegate.
@@ -102,9 +103,11 @@ Then delegate.
   `docs/specs/{name}.md` rather than re-deriving it, and must not ask the user to restate it;
 - the **skip-list** verbatim, so its pre-flight does not re-run `domain-entity` or
   `dotnet-ef-migration` over layers that already exist;
-- that the **completeness check (its step 5) compares the delivered slice against the spec**, plus the
-  feature's section in `.claude/functional-plan.md` where one exists — a spec-driven feature may be
-  new to the plan, and an absent plan section is not a gap;
+- that its **review loop runs `spec-verify`** against `docs/specs/{name}.md` every round, applies the
+  mechanical findings and **stops on a design finding** (see below);
+- that the **completeness check (its step 5) takes the last clean `spec-verify` round as the evidence
+  against the spec**, plus the feature's section in `.claude/functional-plan.md` where one exists — a
+  spec-driven feature may be new to the plan, and an absent plan section is not a gap;
 - that its **docs sync (its step 7)** still applies: add the delivery line to `## Delivery status` in
   `.claude/functional-plan.md`, referencing the feature branch.
 
@@ -114,18 +117,42 @@ push. Do not duplicate any of it, and do not suppress its gates.
 **Route B — `slice-builder` only.** Spawn the agent (`Agent` tool, `subagent_type: slice-builder`)
 with the same brief. Do **not** include the phrase `composed mode — do NOT commit`: standalone mode
 is exactly what this route wants — the agent commits and pushes itself. It will not create a branch
-when one is already checked out, which step 3 guarantees.
+when one is already checked out, which step 3 guarantees. No spec verification runs on this route;
+once the agent reports green, run the **`spec-verify` skill** yourself (scope **branch**) before
+step 5 — the user declined the code-quality gate, not the spec gate.
 
 **If either reports a red build, red tests, or an unresolved review finding** — stop. Leave the spec
 at `status: implementing`, relay the failure, and let the user decide. Never mark a spec implemented
 on top of a failing verification, and never claim integration tests passed when Docker was
 unavailable (they are *unverified*, per `CLAUDE.md`).
 
+**If `spec-verify` reports a `design` finding** — the spec, not the slice, is wrong or silent, and the
+fix is a reopen per `docs/specs/README.md → Reopening a spec`: `status: draft`, the finding appended
+verbatim (with its `SV-` id) under `## Open questions`, and one commit of **only the spec**:
+
+```
+docs(spec): reopen {slug} — {one-line reason}
+
+Reopens-Spec: docs/specs/{name}.md
+```
+
+On **Route A** `ship-slice` has already done this when it stopped — relay its report. On **Route B**
+do it yourself. Either way stop here with the finding in your report: the slice stays as it is (Route
+A: uncommitted, as evidence; Route B: already committed by `slice-builder`), the human resolves the
+spec, runs `spec-review`, sets `approved`, and `spec-implement` resumes from step 3 on the same branch.
+
+**If `spec-verify` on Route B reports `mechanical` findings** (a missing requirement, an untested
+scenario) — you write no slice code, and `slice-builder` has already committed. Report the findings
+with their `SV-` ids, leave the spec at `status: implementing`, and stop; the user fixes them (or
+re-runs the responsible task-skill) and re-runs `spec-implement`, which takes step 2's `implementing`
+path and verifies again before step 5.
+
 ---
 
 ## Step 5 — Close the loop on the spec
 
-Once the delegated route reports green:
+Once the delegated route reports green **and `spec-verify` reports full `R`/`AC` coverage with no
+open finding** (Route A's last round, or your own run on Route B):
 
 1. Tick every delivered item in `## Implementation tasks`; leave deliberately skipped items unticked
    with a one-line note.

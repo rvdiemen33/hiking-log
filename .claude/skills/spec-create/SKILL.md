@@ -118,6 +118,12 @@ spec **before asking anything further**. Mirror the nearest reference slice for 
 - **Api**: route templates, verbs and the status codes the controller rule prescribes per verb.
 - **Tests**: the unit, Tier 0 and Tier 3 tests the slice owes.
 
+**Number the requirements.** Every requirement gets an `R{n}` in spec order — the entity and its
+persistence (when there is a `## Domain` section), then each command, each query, each business rule;
+endpoints share the id of their handler. Every acceptance scenario gets `AC{n}.{m}` under its
+requirement's `n`. `spec-verifier` traces the delivered code and tests back to these ids; they are
+stable once approved — `docs/specs/README.md → Conventions` owns the renumbering rule.
+
 Tag every value you had to guess with `TO CONFIRM: {question}`. Those become the targeted questions in
 Phase 4; everything else is presented for confirmation, not asked cold.
 
@@ -139,7 +145,8 @@ validation rules, and **1–3 acceptance scenarios** (Given/When/Then with real 
 confirmation. The `OneOf` contract follows from the kind — derive it, never ask.
 
 **Queries** — per query: name, kind (single / collection / by-parent / aggregate), filters, DTO
-fields. Collection queries return `IReadOnlyList<TDto>` and never fail — derive that too.
+fields, and **1–2 acceptance scenarios** (what a filter returns and excludes, what the empty result
+looks like). Collection queries return `IReadOnlyList<TDto>` and never fail — derive that too.
 
 **Api** — route template and verb per operation; status codes follow from the verb.
 
@@ -191,7 +198,7 @@ _From codebase exploration on {TODAY_ISO_DATE}._
 - **Collisions / conflicts**: {none | the collision and the resolution chosen}
 
 ## Domain
-- **Entity**: {EntityName} (feature folder `{Feature}`)
+- **Entity**: {EntityName} (feature folder `{Feature}`) — `R1`
 - **Properties**:
   - {Name}: {CSharpType} — {required|optional}{, max {N} chars}{, precision {p},{s}}
   _(repeat per property)_
@@ -204,36 +211,40 @@ _From codebase exploration on {TODAY_ISO_DATE}._
 ## Application
 
 ### Commands
-- **{CommandName}** ({Add|Update|Delete})
+- **{CommandName}** ({Add|Update|Delete}) — `R{n}`
   - Properties: {list with C# types}
   - Result: `{OneOf<...> contract}`
   - Validation: {rule per property, or "none — Delete has no validator"}
   - Acceptance:
-    - Given {precondition}, when {action}, then {observable outcome}
-    _(1–3 scenarios per command)_
+    - `AC{n}.1` Given {precondition}, when {action}, then {observable outcome}
+    _(1–3 scenarios per command, numbered AC{n}.1, AC{n}.2, …)_
 _(repeat per command)_
 
 ### Queries
-- **{QueryName}** ({Single|Collection|By-parent|Aggregate})
+- **{QueryName}** ({Single|Collection|By-parent|Aggregate}) — `R{n}`
   - Filters: {list | none}
   - Result: `{contract}`
   - DTO fields: {list}
+  - Acceptance:
+    - `AC{n}.1` Given {rows on both sides of the filter}, when {GET …}, then {which rows, and which not}
+    _(1–2 scenarios per query)_
 _(repeat per query)_
 
 ## Api
 - **Controller**: `{Feature}Controller` in `src/HikingLog.Api/{Feature}/`
 - **Endpoints**:
-  - `{VERB} {route template}` → {HandlerName} — {status codes}
-  _(repeat per endpoint)_
+  - `{VERB} {route template}` → {HandlerName} (`R{n}`) — {status codes}
+  _(repeat per endpoint; the id is the handler's)_
 - **Models**: {Create{Entity}Request, Update{Entity}Request, {Entity}Response}
 
 ## Business rules
-{Numbered rules and where each is enforced, or "None beyond field validation."}
+1. `R{n}` {rule} — enforced in {layer}
+_(repeat per rule, or "None beyond field validation.")_
 
 ## Tests
-- **Unit**: {per handler — happy path, validation-failed, NotFound where applicable}
-- **Tier 0**: {per endpoint — one test per status code; behavioural tests per filter/by-parent route}
-- **Tier 3**: {per handler with database — at minimum the Add handler}
+- **Unit**: {per handler — happy path, validation-failed, NotFound where applicable} — covers {AC ids}
+- **Tier 0**: {per endpoint — one test per status code; behavioural tests per filter/by-parent route} — covers {AC ids}
+- **Tier 3**: {per handler with database — at minimum the Add handler} — covers {AC ids}
 
 ## Open questions
 {User-provided items, or "None."}
@@ -252,8 +263,9 @@ _Not yet reviewed. Run `spec-review` to review this spec._
 ```
 
 Omit sections the feature genuinely does not touch (a spec that only adds a query has no `## Domain`
-section and no migration task). Keep `## Impact / Affected areas` regardless, and write "none
-identified" where the feature is greenfield.
+section and no migration task — its first requirement is then `R1` on the first command or query; ids
+stay contiguous across the sections that remain). Keep `## Impact / Affected areas` regardless, and
+write "none identified" where the feature is greenfield.
 
 ---
 
@@ -306,8 +318,9 @@ exempts from "commit only when the user asks"; it never needs a confirmation.
 1. `git branch --show-current` and pick the branch the spec lives on — the slice later shares it, so
    spec and implementation end up in one branch and one PR:
    - already on `feature/{slug}`: stay;
-   - on `master`: `git checkout -b feature/{slug}`, or plain `git checkout feature/{slug}` when
-     `git rev-parse --verify --quiet feature/{slug}` shows the branch already exists;
+   - on `master`: `git checkout -b feature/{slug}`, or `git switch feature/{slug}` when
+     `git branch --list feature/{slug}` shows the branch already exists (both are in the permission
+     allow-list; plain `git checkout <branch>` and `git rev-parse` are not);
    - on any other branch (another feature, a fix branch): the draft never lands there — `spec-implement`
      and `ship-slice` only know `master` and `feature/{slug}`. Ask once (AskUserQuestion): create
      `feature/{slug}` from `master` now (`git checkout -b feature/{slug} master`; the untracked spec
