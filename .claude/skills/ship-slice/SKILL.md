@@ -42,9 +42,12 @@ the whole point: nothing known-bad ever reaches a commit.
 - **"Unverified" is never "passed."** Integration tests need Docker (Testcontainers). If Docker is
   unavailable and you could not run them, say so explicitly — do not claim they passed.
 - **Never commit or push known-red work** (failing build, format, or tests — Docker exception aside).
-- **No hard iteration cap on the review loop.** Loop until it *converges* (a round produces no new
-  confirmed findings). The runaway guard is *non-progress*: if the same finding keeps coming back
-  without a fix resolving it, stop and report it — do not loop forever and do not invent a fixed count.
+- **The review loop is bounded: at most two fix rounds.** Round 1 reviews and fixes, round 2 re-reviews
+  and fixes, and a third pass is *verification only* — if it still yields a confirmed finding, stop and
+  escalate to the human with the open findings; never a third fix round, never "looks fine now". The
+  exit is **verification green and no open confirmed finding** — not "the reviewer has nothing more to
+  say", because that moment never comes. The *non-progress* guard still stops earlier: the same finding
+  back after a fix that claimed to resolve it ends the loop at once.
 
 ## Determining the slice diff (used by steps 3–5)
 
@@ -81,11 +84,20 @@ You (the main loop) own the working tree — the review tools do not write to it
 - A finding is **confirmed** when it survived the review skill's own verification pass and carries
   severity **CRITICAL or SIGNIFICANT** — `backend-review`, `review-claude-setup` and `spec-verify` all
   drop unverifiable findings before reporting. MINOR findings are advisory: apply one only when the fix is
-  trivial and obviously correct; otherwise list it as follow-up.
-- Apply each confirmed finding yourself with `Edit`/`Write`, then re-verify (below).
-- A `spec-verify` finding additionally carries a **`class`**. `mechanical` findings are confirmed and
-  applied like any other; a `design` finding is **never patched in code** — it stops the review loop
-  (step 3), because the spec, not the slice, is what needs changing.
+  trivial and obviously correct; otherwise list it as follow-up. **Nothing is applied — MINOR included —
+  during the verification-only pass** (Honesty rules); whatever surfaces there goes to the follow-up
+  list or the escalation report.
+- **Classify every confirmed code finding (step 3) before applying it.** `spec-verify` does this
+  itself (its findings carry a `class`); `backend-review` reports code against the rules and does not,
+  so you do, with the spec — or, without one, the feature's plan section — as the reference.
+  `review-claude-setup` findings (step 4) need no classification — a setup file has no spec to be wrong
+  against; apply them as they come. **Mechanical**: the
+  reference is right and the code is not — a failing test, a null check, a naming or contract slip, a
+  missing registration, a rule violation. **Design**: a wrong abstraction, a missed edge case, a
+  behaviour the reference never decided. A design finding is **never patched in code**: with a spec it
+  stops the loop and reopens the spec (step 3); without one it stops the loop and goes to the user as a
+  design question.
+- Apply each confirmed mechanical finding yourself with `Edit`/`Write`, then re-verify (below).
 - If a finding's correct fix is genuinely unclear and no user is reachable, **stop and report it** —
   never guess at a fix you don't understand.
 
@@ -208,8 +220,13 @@ Operate on the slice diff (see "Determining the slice diff"). Each round:
    is full verification each round, not a cheap subset. If Docker is unavailable, the integration tests
    are *unverified*, not passed (see Honesty rules).
 
-Repeat **until convergence** — stop as soon as a round yields no new confirmed findings from either
-skill (and, with a spec, `spec-verify` reports full `R`/`AC` coverage).
+**Rounds.** A round that applied at least one fix is a *fix round*; you get **two**. After the second,
+run one more review pass **without fixing**: clean (no confirmed finding, verification green and —
+with a spec — full `R`/`AC` coverage) → the loop exits; not clean → **stop and escalate**: report the
+open findings with `file:line`, the fixes the two rounds applied, and leave the tree uncommitted for
+the human to decide. A **design** finding surfacing at any point follows point 1's reopen-or-ask
+protocol instead of this generic escalation. A round that finds nothing ends the loop early. Each re-review runs in fresh lens
+agents, so a round never inherits the previous round's reasoning.
 
 **Scope of the re-review vs. the re-verify — they differ.** The re-*verify* in point 2 is always full
 (build + format + unit + integration), never a subset — a fix anywhere can break anything. The
@@ -218,7 +235,7 @@ files (e.g. only test files, with the production code already reported clean), t
 just those changed files — a focused pass confirming the fixes introduced no new defect — rather than
 re-running the full multi-angle fan-out over already-clean code. Use the full fan-out again only when a
 fix touched production code broadly or you have reason to think it shifted behaviour elsewhere. A scoped
-round that yields no new findings still counts as convergence. **Guard: scoping is only allowed after at
+round that yields no new findings is a clean exit like any other. **Guard: scoping is only allowed after at
 least one full fan-out pass has covered the whole slice** — never scope from the first round, or a
 production-code defect the first pass would have caught could go unreviewed.
 
@@ -242,7 +259,8 @@ Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, `.claude/r
 via `git status --short` (includes untracked files). A normal slice touches none of these, so skip it then.
 
 If it did: run the **`review-claude-setup` skill** with scope **working tree**, apply confirmed fixes
-(CRITICAL/SIGNIFICANT), and repeat until clean (same convergence rule as step 3). Re-verify with the
+(CRITICAL/SIGNIFICANT), and repeat until clean under the same two-fix-round cap and escalation as
+step 3. Re-verify with the
 `/check` sequence — these changes are to skill/doc files that do not affect compiled code, so the
 integration tests are not required here; run them only if a fix also touched `src/` or `tests/`.
 
@@ -294,7 +312,8 @@ user's outward-facing call. Report:
 - what was built (entity, commands/queries, endpoints, tests);
 - verification results (and explicitly flag integration tests as unverified if Docker was unavailable);
 - with a spec: the final `spec-verify` coverage line and the number of mechanical findings applied;
-- review fixes applied;
+- review fixes applied and the fix rounds used (`n` of 2) — on an escalation, the open findings with
+  `file:line` instead of a commit;
 - any completeness gaps as follow-up;
 - the ready-to-run command:
 

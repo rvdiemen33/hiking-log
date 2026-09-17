@@ -47,11 +47,10 @@ HikingLog.slnx
   the delivery status), merged into `master` with a merge commit (`Merge feature/<x> into master`).
 - Source control is GitHub (`gh`). Opening a PR is always the user's call — never run `gh pr create`
   unprompted; `gh` is deliberately absent from the permission allow-list.
-- Outside the `ship-slice` skill, a standalone `slice-builder` run, and the spec-flow skills that own a
-  specific commit (`spec-create` the draft; `spec-review` the gate result; `spec-implement` the status
-  flips; `spec-close` the retirement, after the user confirms), commit or push only when the user asks.
-  `docs/specs/README.md` owns the spec-flow commit conventions: the `docs(spec)` scope, what each
-  commit stages, and the `Reopens-Spec` trailer for a status that runs backwards.
+- Outside the `ship-slice` skill, a standalone `slice-builder` run, and the spec-flow skills that own
+  specific commits (`spec-create`, `spec-review`, `spec-implement`, `spec-close`), commit or push only
+  when the user asks. `docs/specs/README.md` owns the spec-flow commit conventions: which skill commits
+  what, the `docs(spec)` scope, and the `Reopens-Spec` trailer for a status that runs backwards.
 
 ## Verification
 
@@ -218,8 +217,9 @@ Orchestrators and reviews (main-loop skills — a subagent cannot spawn agents):
 
 - `ship-slice` — delivers a feature end to end **with the quality gate**: spawns `slice-builder` (build only, no
   commit) → `backend-review` (+ `spec-verify` when a spec drives the slice) over the uncommitted working
-  tree (apply confirmed fixes, re-verify, loop to convergence; a `spec-verify` design finding reopens the
-  spec and stops) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
+  tree (apply confirmed mechanical fixes, re-verify; two fix rounds plus a verification-only pass, then
+  escalate if still not clean; a design finding stops the loop — reopening the spec when one drives the
+  slice, otherwise as a question to the user) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
   completeness check vs `functional-plan.md` → commits the reviewed slice → docs sync → reports the
   ready-to-run `gh pr create`. Use for "build, review and ship X"; use `slice-builder` for a plain build, or a
   single task-skill for one layer.

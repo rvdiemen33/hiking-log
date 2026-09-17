@@ -91,6 +91,7 @@ Reopens-Spec: docs/specs/{name}.md
 | `spec-verify` (in `ship-slice`'s review loop) classifies a finding as **design** — an unspecified change, a contract the spec got wrong, a missed edge case | `implementing → draft` | The skill that observed it (`ship-slice`, or `spec-implement` on its `slice-builder`-only route) commits the reopen and stops; the slice stays as evidence |
 | Code review or the PR turns up a **design** finding (wrong abstraction, missed edge case) | `implemented → draft` | Fix the spec, not the code — a code patch for a design finding hides the gap |
 | The PR is rejected on **mechanics** (failing test, naming, null check) | stays `implemented` | Fix the code on the branch; nothing is reopened |
+| `ship-slice`'s review loop is still not clean after **two fix rounds** | stays `implementing` | `ship-slice` stops and escalates with the open findings; the human decides — never a third automated round |
 | The reviewer rejects the approach, not a detail | stays `draft` | Rewrite via `spec-create`, keep the filename |
 | The story turns out not to meet the Definition of Ready | spec dropped | `git rm` the spec, commit `docs(spec): drop {slug} — story not ready` |
 
