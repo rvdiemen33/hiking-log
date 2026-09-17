@@ -1,5 +1,5 @@
 ---
-status: reviewed
+status: implementing
 issue: 8
 created: 2026-09-17
 ---
