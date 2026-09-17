@@ -1,5 +1,5 @@
 ---
-status: draft
+status: reviewed
 issue: 8
 created: 2026-09-17
 ---
@@ -229,4 +229,33 @@ spec, so the observation survives): `HikeLog.Notes` is
 - [ ] Tests: unit updates + new scenarios, `StageFaker`, Tier 0, Tier 3
 
 ## Review Notes
-_Not yet reviewed. Run `spec-review` to review this spec._
+
+_Reviewed on 2026-09-17._
+
+### Blockers
+None.
+
+### Warnings
+1. `## Business rules` / `## Tests` — `R6` names `AddStageHandler` and `UpdateStageHandler` as the enforcement
+   point for verbatim storage (empty string kept, not coerced to `null`), but `AC6.1` and `AC6.2` are covered at
+   Tier 0 only. No Application-layer test pins the behaviour where the spec says it lives, so a later handler
+   change that trims or null-coerces would be caught only by the HTTP tests. Consider an assertion in
+   `UpdateStageHandlerTests` for the empty-string case.
+2. `## Impact / Affected areas` / `## Open questions` — the spec sets `Notes` to 2000 on both sides while the
+   mirrored `HikeLog.Notes` stays at `HasMaxLength(2000)` / `MaximumLength(1000)` (confirmed in
+   `src/HikingLog.Infrastructure/Data/Configurations/HikeLogConfiguration.cs` vs `AddHikeLog.cs` /
+   `UpdateHikeLog.cs`). `## Open questions` says "None for this spec" and the follow-up depends on a GitHub
+   issue that does not exist yet, so the divergence can survive `spec-close` unrecorded. Record the issue number
+   in the spec once filed, or have `spec-close` harvest the observation explicitly.
+
+### Suggestions
+1. `## Tests` (Tier 0) — `PostStage_WhenNotesProvided_Returns201AndEchoesNotes` and
+   `PutStage_WhenNotesProvided_Returns200AndEchoesNotes` mix the two naming forms in
+   `backend-integration-testing.md` (`…_Returns<StatusCode>` for status tests,
+   `…_When<Condition>_<Outcome>` for behavioural ones). Pick one form per test.
+2. `## Tests` (Tier 0) — state that `PutStage_WhenNotesOmitted_ClearsNotes` sends a body that literally omits the
+   `notes` property (an anonymous object), since a `StageFaker`-derived request would send `"notes": null`. The
+   two are equivalent under the planned model binding, but only the former tests what the name claims.
+3. `## Tests` (Tier 3) — a round-trip/clear test on `UpdateStageHandler` would exercise the real column on the
+   update path, which is otherwise only covered through HTTP. Above the rule's minimum (Add handler only), hence
+   optional.
