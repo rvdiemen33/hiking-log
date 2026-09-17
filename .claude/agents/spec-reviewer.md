@@ -215,7 +215,9 @@ Touch nothing else in the spec, and never edit a file outside `docs/specs/`.
 per mode by the tool list, so the "changes nothing" guarantee is yours to keep: no Review Notes, no
 status change, no edit of any kind. The advisory pass is `spec-create`'s refine loop over a
 just-written draft — `spec-create` applies the fixes itself — and the `draft → reviewed` transition
-belongs exclusively to a later gate run against the human-touched spec.
+belongs exclusively to a gate run, never to this one. That gate run may come immediately, in the same
+`spec-create` run (its Phase 9 chains into `spec-review` when no `TO CONFIRM:` marker survives), or
+later against a spec the user has edited. Either way it is a separate, gate-mode dispatch.
 
 ## Final message (both modes)
 

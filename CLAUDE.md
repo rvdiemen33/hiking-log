@@ -234,7 +234,9 @@ Spec-driven development (main-loop skills — see **Spec-driven development**; l
 carry no `evals/`, because they produce a spec and a delegation, not generated code):
 
 - `spec-create` — interviews, explores the solution read-only, writes `docs/specs/<name>.md` as `draft`,
-  auto-refines it against `spec-reviewer` in advisory mode, then commits the draft on `feature/<slug>`.
+  auto-refines it against `spec-reviewer` in advisory mode, commits the draft on `feature/<slug>`, and
+  then invokes `spec-review` itself when the refined draft has no `TO CONFIRM:` marker left — so a clean
+  spec reaches `reviewed` in one run, and one with open markers stops at `draft` for the user.
 - `spec-review` — the `draft → reviewed` gate; dispatches `spec-reviewer` in gate mode and commits the
   gate result.
 - `spec-implement` — turns an **approved** spec into a brief and delegates to `ship-slice` (default) or
@@ -294,7 +296,10 @@ purpose: the spec is situational, and the skills and agents that need it already
 
 Non-trivial features are specified in `docs/specs/` before they are built:
 `spec-create` → `draft` → `spec-review` → `reviewed` → **(you set `approved` by hand)** → `spec-implement`
-(whose `ship-slice` review loop runs `spec-verify`) → `implemented` → `spec-close`. Specs are ephemeral working artifacts; what lasts is harvested into
+(whose `ship-slice` review loop runs `spec-verify`) → `implemented` → `spec-close`. `spec-create` runs the
+`spec-review` step itself when its draft comes out without `TO CONFIRM:` markers, so those two arrows can
+land in one run; every other transition still needs its own invocation. Specs are ephemeral working
+artifacts; what lasts is harvested into
 `.claude/functional-plan.md` (and `docs/adr/`) when the spec is closed.
 
 A spec normally starts from a GitHub issue filed with the **User story** form

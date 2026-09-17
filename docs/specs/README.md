@@ -13,6 +13,8 @@ GitHub issue (User story form = Definition of Ready)
       │
       ▼
 spec-create  →  draft  →  spec-review  →  reviewed  →  (human sets approved)
+      └── runs spec-review itself when          │
+          the draft has no TO CONFIRM markers ──┘
                                                               │
                                                               ▼
                                                       spec-implement
@@ -67,9 +69,16 @@ recommended, not required — a small feature can go straight to `spec-create` w
   dimension judges: what happens to existing data, existing behaviour and existing clients. A
   greenfield slice writes "none identified"; a change to an existing table, handler or endpoint spells
   out the data strategy, the behaviour delta and any breaking change.
+- **A clean draft goes through the gate in the same run.** `spec-create` invokes `spec-review` itself
+  once its refine pass leaves no `TO CONFIRM:` marker, so such a spec arrives at `reviewed` without a
+  second command. A draft that still carries a marker stops at `draft` — the gate would only report
+  those markers back as blockers. Either way the gate stays `spec-review`'s: it makes the status flip
+  and its own commit, and `spec-create` never touches `status`. Running `spec-review` by hand is
+  unchanged and always allowed, which is what a reopened or hand-edited spec needs.
 - **Specs are committed, and committed early.** `spec-create` commits the draft the moment it is
   written (`docs(spec): add {slug} draft`), before any code exists, so the history proves the design
-  predates the implementation. `spec-review` commits the gate result, `spec-implement` the status
+  predates the implementation. `spec-review` commits the gate result — so a clean `spec-create` run
+  produces two commits, the draft and the gate. `spec-implement` the status
   flips, `spec-close` the retirement. The one edit you make by hand — `approved` — rides along with
   `spec-implement`'s first commit. Every spec-flow commit touches only the spec file (plus what the
   skill explicitly owns) and uses the `docs(spec)` scope.
