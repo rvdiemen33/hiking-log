@@ -19,6 +19,7 @@ public class StageFaker : Faker<CreateStageRequest>
             f.Address.City(),
             f.Random.Decimal(5, 30),
             f.Random.Decimal(0, 500),
-            f.PickRandom<Difficulty>()));
+            f.PickRandom<Difficulty>(),
+            null));
     }
 }

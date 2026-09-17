@@ -34,7 +34,7 @@ public class AddHikeLogHandlerTests(HikingTestWebApplicationFactory factory) : I
         ICommandHandler<AddStage, OneOf<AddStageResult, ValidationFailed, NotFound>> stageHandler = scope.ServiceProvider
             .GetRequiredService<ICommandHandler<AddStage, OneOf<AddStageResult, ValidationFailed, NotFound>>>();
         OneOf<AddStageResult, ValidationFailed, NotFound> stageResult = await stageHandler.Handle(
-            new AddStage(routeId, 1, "Etappe 1", "Bergen", "Haarlem", 22.5m, 150m, Domain.Enums.Difficulty.Moderate),
+            new AddStage(routeId, 1, "Etappe 1", "Bergen", "Haarlem", 22.5m, 150m, Domain.Enums.Difficulty.Moderate, null),
             CancellationToken.None);
         Assert.True(stageResult.IsT0);
         int stageId = stageResult.AsT0.Id;

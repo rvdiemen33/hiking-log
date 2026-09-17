@@ -35,6 +35,9 @@ internal sealed class StageConfiguration : IEntityTypeConfiguration<Stage>
             .HasConversion<string>()
             .HasMaxLength(20);
 
+        builder.Property(s => s.Notes)
+            .HasMaxLength(2000);
+
         builder.HasMany(s => s.HikeLogs)
             .WithOne(h => h.Stage)
             .HasForeignKey(h => h.StageId)
