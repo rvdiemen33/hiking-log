@@ -24,7 +24,8 @@ spec-create  →  draft  →  spec-review  →  reviewed  →  (human sets appro
                                                               │
                                                               ▼
                                                         spec-close
-                                                 (harvest → archive → closed)
+                                            (three close-out questions → harvest
+                                                    → archive → closed)
 ```
 
 | Status | Meaning | Set by |
@@ -32,7 +33,7 @@ spec-create  →  draft  →  spec-review  →  reviewed  →  (human sets appro
 | `draft` | Written, not yet through the review gate — or reopened (see below) | `spec-create`, or whoever reopens |
 | `reviewed` | Reviewed with no blockers left | `spec-reviewer` (gate mode) |
 | `approved` | The human accepted the review notes; implementation is unlocked | **you**, by hand |
-| `implementing` | Build in progress | `spec-implement` |
+| `implementing` | Build in progress — the branch is the state; an interrupted run is re-derived from it, never resumed from the checkboxes | `spec-implement` |
 | `implemented` | Delivered and verified | `spec-implement` |
 | `closed` | Harvested and archived | `spec-close` |
 

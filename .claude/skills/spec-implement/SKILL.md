@@ -4,7 +4,8 @@ description: >
   Spec-driven development implementation orchestrator for HikingLog. Reads an approved spec from
   docs/specs/, turns it into a complete feature brief, and hands that brief to the ship-slice skill
   (build → review → commit) or, when the user declines the quality gate, to the slice-builder agent.
-  Refuses to run unless the spec's status is approved. Use when the user says "implement the spec",
+  Refuses to run unless the spec's status is approved — except an interrupted `implementing` run,
+  which it re-derives from its branch rather than resuming from the checkboxes. Use when the user says "implement the spec",
   "build the feature from the spec", "the spec is approved, go", or "/spec-implement". Takes an
   optional file path; defaults to the most recent approved spec in docs/specs/.
   Do NOT use to write a spec (spec-create), to review one (spec-review), or to retire one after
@@ -29,7 +30,7 @@ ls -t docs/specs/*.md | grep -v README
 
 Pick the most recently modified file with `status: approved`.
 
-**Guards — stop immediately if any fails:**
+**Guards** (every branch stops the run, except `implementing`, which re-derives and continues):
 
 - No spec found → say so and stop.
 - `status` is not `approved`:
@@ -37,9 +38,25 @@ Pick the most recently modified file with `status: approved`.
     `status: approved`."
   - `reviewed` → "This spec is reviewed but not approved. Set `status: approved` in the frontmatter
     once you have accepted the Review Notes, then re-run `spec-implement`."
-  - `implementing` / `implemented` → "This spec is already `{status}`. Re-running may duplicate
-    scaffolding." Use AskUserQuestion to confirm before continuing; on `implementing`, resume from the
-    first unticked item in `## Implementation tasks`.
+  - `implemented` → "This spec is already implemented. Run `spec-verify` to re-check the code against
+    it, or `spec-close` to retire it." Stop.
+  - `implementing` → the one status that does **not** stop the run: an earlier run was interrupted.
+    **The branch is the state, not the checkboxes** — an interrupted run may have written layers it
+    never ticked, or ticked layers a rollback removed. Do not resume from `## Implementation tasks`;
+    **re-derive**:
+    1. `git branch --list feature/{slug}` must print the branch. If it does not, **stop and report the
+       anomaly** — an `implementing` spec whose branch is gone means lost or moved work; never start a
+       fresh branch here. Otherwise `git switch feature/{slug}`.
+    2. A working tree dirty with **unrelated** files → stop and report, as step 3 does. A tree dirty
+       with **this feature's** files is an interrupted `ship-slice` run — leave it to `ship-slice`'s
+       own pre-flight, which asks whether to resume its review or discard.
+    3. Read `git log master..HEAD --oneline` and `git status --short`, then inventory this feature's
+       layers on disk as `ship-slice`'s pre-flight (its step 1) lists them, plus the feature's tests
+       under `tests/`.
+    4. Rewrite `## Implementation tasks` to match the inventory (tick what exists, untick what does
+       not), rebuild the skip-list from it, tell the user in one line what the branch already holds,
+       and continue from step 2 with the trimmed brief — step 3's status commit is skipped, the spec is
+       already `implementing`.
 - Read the full spec. `grep -n "TO CONFIRM:"` it — **an approved spec must contain none**. If markers
   survived, stop and list them; the spec was approved prematurely.
 
@@ -73,9 +90,10 @@ spawning it:
    If you are already on a suitable `feature/<...>` branch, stay.
 2. If the working tree is dirty for unrelated reasons, stop and report — do not stash the user's work.
 3. Set `status: implementing` in the spec frontmatter and commit **only that file**:
-   `docs(spec): mark {slug} implementing`. This keeps the tree clean for `ship-slice` and makes the
-   run resumable after an interruption. This is the single commit this skill makes; every code commit
-   belongs to `ship-slice`.
+   `docs(spec): mark {slug} implementing`. This keeps the tree clean for `ship-slice` and gives an
+   interrupted run a fixed point to re-derive from (step 1's `implementing` path). Every code commit
+   belongs to `ship-slice`; this skill commits only the spec — the two status flips, and a Route B
+   reopen.
 
 ---
 
@@ -139,12 +157,13 @@ Reopens-Spec: docs/specs/{name}.md
 On **Route A** `ship-slice` has already done this when it stopped — relay its report. On **Route B**
 do it yourself. Either way stop here with the finding in your report: the slice stays as it is (Route
 A: uncommitted, as evidence; Route B: already committed by `slice-builder`), the human resolves the
-spec, runs `spec-review`, sets `approved`, and `spec-implement` resumes from step 3 on the same branch.
+spec, runs `spec-review`, sets `approved`, and runs `spec-implement` again from step 1 — the branch
+already exists, so step 3 stays on it.
 
 **If `spec-verify` on Route B reports `mechanical` findings** (a missing requirement, an untested
 scenario) — you write no slice code, and `slice-builder` has already committed. Report the findings
 with their `SV-` ids, leave the spec at `status: implementing`, and stop; the user fixes them (or
-re-runs the responsible task-skill) and re-runs `spec-implement`, which takes step 2's `implementing`
+re-runs the responsible task-skill) and re-runs `spec-implement`, which takes step 1's `implementing`
 path and verifies again before step 5.
 
 ---

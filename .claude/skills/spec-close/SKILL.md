@@ -2,9 +2,11 @@
 name: spec-close
 description: >
   Spec-driven development close-out for HikingLog. Retires an implemented spec: confirms the code was
-  reviewed and merged, harvests durable facts out of the spec (domain model and endpoints into
-  .claude/functional-plan.md, lasting technical decisions into docs/adr/), then archives the spec under
-  docs/specs/archive/ and commits the retirement. Use when a spec-driven feature has shipped and the
+  reviewed and merged, answers three close-out questions explicitly - is there a lasting decision (ADR),
+  did the feature make existing documentation wrong (correct it), is documentation now missing (create
+  it) - where "none" is an answer and silence is not, harvests the domain model and endpoints into
+  .claude/functional-plan.md, then archives the spec under docs/specs/archive/ and commits the
+  retirement. Use when a spec-driven feature has shipped and the
   spec should be cleaned up: "close the spec", "retire the spec for X", "we're done with this spec",
   "/spec-close". Refuses to run unless the spec's status is implemented.
   Do NOT use to create, review, or implement a spec — those are spec-create, spec-review and
@@ -40,30 +42,48 @@ Pick the most recently modified file with `status: implemented`.
 
 ---
 
-## Step 2 — Confirm the code shipped, and decide on harvesting
+## Step 2 — Confirm the code shipped, then answer the three close-out questions
 
 The spec stays alive until the code it produced has been reviewed and merged — if review bounces the
 implementation, the spec is the reference for the fixes.
 
-Before asking, scan the spec for material worth preserving:
+Before asking anything, answer **three questions** from the spec and the shipped code. Each gets an
+explicit answer — **"none" is an answer, silence is not** — and every answer lands in the report
+(step 5):
 
-- `## Business rules` and `## Domain` — facts that now describe the shipped system and belong in
-  `.claude/functional-plan.md` (the living domain spec), if they are not already there.
-- `## Open questions` resolved with a non-obvious answer, and `## Review Notes` warnings that led to a
-  deliberate design choice.
-- Any deviation from the canonical patterns — an unusual `OneOf` contract, a denormalisation, a
-  deliberate departure from the CQRS or persistence rules — and **why**.
+1. **Is there a lasting decision in here?** Scan `## Business rules` and `## Domain` for facts that
+   now describe the shipped system; `## Open questions` resolved with a non-obvious answer and
+   `## Review Notes` warnings that led to a deliberate design choice; any deviation from the canonical
+   patterns — an unusual `OneOf` contract, a denormalisation, a deliberate departure from the CQRS or
+   persistence rules — and **why**. Judge honestly: **most feature specs yield no architectural
+   decision.** A plain CRUD slice that followed every canonical pattern has nothing durable to record
+   beyond the plan update. Answer: the one-line decision, or "none".
+2. **Does the shipped feature make existing documentation wrong?** Check `.claude/functional-plan.md`
+   (a rule, endpoint or property it changed), `docs/adr/*.md` (an ADR the feature supersedes),
+   `CLAUDE.md` where it describes the stack, local setup or running the API (a new configuration
+   value, a changed port or connection string), and the code examples in `.claude/rules/backend/*.md`
+   and `.claude/skills/*/SKILL.md` (a pattern the feature changed). Answer: the files and what is now
+   wrong in each, or "none".
+3. **Is documentation missing that should now exist?** A new endpoint family or business rule with no
+   home in the functional plan; a configuration value or run-time dependency `CLAUDE.md`'s setup
+   sections do not mention; a convention the slice introduced that no rule captures. Answer: what to
+   create and where, or "none".
 
-Judge honestly: **most feature specs yield no architectural decision.** A plain CRUD slice that
-followed every canonical pattern has nothing durable to record beyond the plan update.
-
-Then ask once (AskUserQuestion, both questions in a single call):
+Then ask once (AskUserQuestion — every applicable question in a single call, at most four):
 
 1. "Has `{slug}`{ (issue #{issue})} been reviewed and merged?" — **Yes, close it** / **Not yet, keep the spec**.
-2. Only when step 2's scan found something: "The spec records {one-line summary}. Promote it to an ADR
-   before archiving?" — **Yes, write the ADR** / **No, the functional plan and git history are enough**.
+2. Only when close-out question 1 (lasting decision) found one: "The spec records {one-line decision}.
+   Promote it to an ADR before archiving?" — **Yes, write the ADR** / **No, the functional plan and git
+   history are enough**.
+3. Only when close-out question 2 (documentation made wrong) found something: "These documents are now
+   wrong: {list}. Correct the ones under `docs/` and in the functional plan in this close-out? (Items
+   in `CLAUDE.md` and `.claude/**` stay follow-up.)" — **Yes, correct them** / **No, I will handle it**.
+4. Only when close-out question 3 (documentation missing) found something: "This documentation should
+   now exist: {list}. Create it in this close-out? (A missing rule or instruction stays follow-up.)" —
+   **Yes, create it** / **No, I will handle it**.
 
-On "not yet" → stop cleanly, leaving the spec at `status: implemented`.
+On "not yet" → stop cleanly, leaving the spec at `status: implemented`. A "none" answer is never asked
+about — it is reported.
 
 ---
 
@@ -85,6 +105,19 @@ added; do not duplicate it. If the feature changed nothing the plan describes, s
    and `status: accepted`.
 4. Record the decision itself and the reasoning — never transcribe the whole spec.
 
+**Conditionally: correct documentation the feature made wrong.** Only when the user chose that in
+step 2, and only in files under `docs/` and in `.claude/functional-plan.md`: make the minimal edit that
+makes the text true again; set a superseded ADR's `status` to `superseded by {number}` when the new
+ADR replaces it (the file stays — nothing under `docs/adr/` is ever deleted). **Never edit
+`CLAUDE.md`, `.claude/rules/**` or `.claude/skills/**` here** — an instruction, rule or skill change
+needs `/review-claude-setup` afterwards and is its own piece of work; list those as follow-up in the
+report instead.
+
+**Conditionally: create documentation that should now exist.** Only when the user chose that in
+step 2, under the same file restriction: add the missing section to the functional plan, or the
+missing ADR when close-out question 1 also produced one. A missing *rule* or *instruction* is a
+follow-up, not something this skill writes.
+
 ---
 
 ## Step 4 — Archive the spec and commit
@@ -99,8 +132,8 @@ frontmatter, then:
 git mv docs/specs/{name}.md docs/specs/archive/{name}.md
 ```
 
-Create `docs/specs/archive/` if needed. Stage the functional-plan edit and the ADR when there is one,
-then commit with a Conventional Commit:
+Create `docs/specs/archive/` if needed. Stage the functional-plan edit, the ADR and the documentation
+edits the user approved in step 2 when there are any, then commit with a Conventional Commit:
 
 - with an ADR: `docs(spec): retire {slug} and record ADR {number}`
 - without: `docs(spec): retire {slug} after implementation`
@@ -109,6 +142,7 @@ Do not push and do not open a PR unless the user asks.
 
 **If the user explicitly prefers a clean working tree** over an archive folder, `git rm` the spec
 instead — git history retains the full copy either way (`git log --all -- docs/specs/{name}.md`).
+`git mv` is in the permission allow-list; `git rm` deliberately is not — expect a prompt on that path.
 This is a spec-only exception the user asks for; it does not loosen `CLAUDE.md`'s rule that a
 superseded skill, agent, rule or instruction file is always archived under `.claude/archive/`.
 
@@ -117,9 +151,16 @@ superseded skill, agent, rule or instruction file is always archived under `.cla
 ## Step 5 — Report
 
 > "Closed `{slug}`{ (issue #{issue})}.
+> - Lasting decision: {ADR `docs/adr/{number}-{slug}.md`, or 'none — routine slice'}
+> - Existing documentation corrected: {files and what changed, or 'none needed'}{; follow-up in
+>   `CLAUDE.md` / `.claude/**`: {list}}
+> - Documentation created: {files, or 'none needed'}{; follow-up rule or instruction needed in
+>   `.claude/**`: {what}}
 > - Functional plan: {what was folded in, or 'no changes needed'}
-> - ADR: {`docs/adr/{number}-{slug}.md`, or 'none — routine slice, no lasting decision'}
 > - Spec archived at `docs/specs/archive/{name}.md` (`status: closed`), committed but not pushed."
+
+All three close-out answers appear, every time — a line that says "none" is the evidence that the
+question was asked.
 
 ---
 
@@ -128,8 +169,11 @@ superseded skill, agent, rule or instruction file is always archived under `.cla
 - **Never close a spec that is not `implemented`** — an earlier status means the work is unfinished
   and the spec is still the reference for it.
 - **Confirm the code shipped before retiring** — the spec is the map for review-driven fixes.
+- **Answer all three close-out questions explicitly** — a lasting decision, documentation made wrong,
+  documentation now missing. "None" is an answer; silence is not, and the report carries all three.
 - **Harvest before archiving, but do not over-harvest** — the functional plan always; an ADR only for
-  a genuine, lasting decision.
+  a genuine, lasting decision; documentation edits only where the user said yes, and never in
+  `CLAUDE.md`, `.claude/rules/**` or `.claude/skills/**`.
 - **Use `git mv` (or `git rm` on explicit request), never a filesystem delete** — the commit and the
   retained history are the point.
 - This skill commits the retirement it was invoked to perform, after the user's confirmation in

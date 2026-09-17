@@ -238,14 +238,14 @@ carry no `evals/`, because they produce a spec and a delegation, not generated c
 - `spec-review` — the `draft → reviewed` gate; dispatches `spec-reviewer` in gate mode and commits the
   gate result.
 - `spec-implement` — turns an **approved** spec into a brief and delegates to `ship-slice` (default) or
-  `slice-builder`; maintains the spec's status and checkboxes (and reopens the spec on a design finding
-  on its `slice-builder`-only route). Writes no slice code.
+  `slice-builder`; maintains the spec's status and checkboxes, and reopens the spec on a design finding
+  on its `slice-builder`-only route. Writes no slice code.
 - `spec-verify` — lays the slice diff against its spec via the `spec-verifier` agent: missing or
   contradicted `R` requirements, untested `AC` scenarios, unspecified changes — each classified
   **mechanical** (fix the code) or **design** (reopen the spec). Runs inside `ship-slice`'s review loop
   when a spec drives the slice, and standalone. Read-only.
-- `spec-close` — retires an **implemented** spec: harvests into `functional-plan.md` (and `docs/adr/` when
-  a lasting decision exists), archives the spec under `docs/specs/archive/`.
+- `spec-close` — retires an **implemented** spec: three explicit close-out questions (lasting decision?
+  docs made wrong? docs missing?), harvest into `functional-plan.md`, archive under `docs/specs/archive/`.
 
 ## Agents
 
