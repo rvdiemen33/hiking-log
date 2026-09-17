@@ -1,13 +1,20 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <Sdk Name="Aspire.AppHost.Sdk" Version="13.4.6" />
+<Project Sdk="Aspire.AppHost.Sdk/13.5.4">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>0f5d3a41-6b2e-4c8f-9a17-2d6e8b4c1f30</UserSecretsId>
+
+    <!--
+      ASPIRE010 fires because AspireUseCliBundle defaults to false. Keep it false on purpose:
+      with false the SDK pulls the dashboard and DCP in as NuGet packages, so `dotnet build` and
+      `dotnet test` work on a machine (and in CI) that has no Aspire CLI installed. Setting it to
+      true would resolve both from the CLI bundle instead and make the build depend on that tool.
+      The features it unlocks are CLI-only and unused here.
+    -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

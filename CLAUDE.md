@@ -67,10 +67,34 @@ Integration tests require Docker (Testcontainers starts a SQL Server container):
 dotnet test tests/HikingLog.IntegrationTests
 ```
 
-Run the API locally:
+## Running locally
+
+**.NET Aspire AppHost — the primary dev loop.** Orchestrates the SQL Server container and the API, with a
+dashboard showing structured logs, traces and health:
+
+```powershell
+dotnet run --project src/HikingLog.AppHost --launch-profile https
+```
+
+The dashboard URL is printed at startup. The SQL Server container is persistent: it survives AppHost
+restarts and keeps running after it stops (`docker rm -f <name>` to remove it). The API is published on
+`http://localhost:5000` and `https://localhost:5001`. Never run the AppHost and the compose stack at the
+same time; they compete for the same host ports.
+
+The Aspire CLI reads `aspire.config.json` in the repo root to locate the AppHost, so `aspire run` works too.
+`AspireUseCliBundle` stays at its default of `false` so the dashboard and DCP resolve from NuGet and the
+build needs no Aspire CLI; the AppHost suppresses the resulting `ASPIRE010` with that reasoning inline.
+
+**The API on its own**, against a SQL Server you provide via the connection string:
 
 ```powershell
 dotnet run --project src/HikingLog.Api
+```
+
+**Docker Compose**, to reproduce what the container build produces:
+
+```powershell
+docker compose up -d
 ```
 
 ## Local setup
@@ -89,6 +113,9 @@ dotnet user-secrets set "ConnectionStrings:HikingLog" "Server=localhost;Database
 ## Stack
 
 - .NET 10 · ASP.NET Core Web API
+- .NET Aspire 13.5.4 (AppHost orchestration + ServiceDefaults: OpenTelemetry, health checks, service
+  discovery, HTTP resilience). Keep the `Aspire.AppHost.Sdk` version in the AppHost csproj and the
+  `Aspire.Hosting.*` versions in `Directory.Packages.props` on the same release.
 - Entity Framework Core 10 (Code First, SQL Server)
 - Custom CQRS interfaces — `ICommandHandler<TCommand, TResult>` and `IQueryHandler<TQuery, TResult>` defined in `HikingLog.Application`
 - Manual static extension methods for API model mapping (no AutoMapper, no source-gen mapper)
