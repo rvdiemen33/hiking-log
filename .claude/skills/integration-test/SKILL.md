@@ -323,13 +323,16 @@ public class StageFaker : Faker<CreateStageRequest>
             f.Address.City(),
             f.Random.Decimal(5, 35),
             f.Random.Decimal(0, 800),
-            f.PickRandom<Difficulty>()));
+            f.PickRandom<Difficulty>(),
+            null));
     }
 }
 ```
 
 - Pass `"nl"` as the locale to the base constructor for Dutch city/street names
 - Place fakers in `Fakers/` next to the test classes that use them
+- Optional fields are passed as `null` (the ninth argument above) — see the faker rules in
+  `backend-integration-testing.md`; a test that cares opts in with `with { Notes = "..." }`
 
 ---
 

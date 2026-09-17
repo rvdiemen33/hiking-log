@@ -106,7 +106,7 @@ public class Stage
     /// <summary>Gets or sets the difficulty level.</summary>
     public Difficulty Difficulty { get; set; }
 
-    // ... Number, Name, StartPoint, EndPoint, DistanceKm, ElevationDifferenceM ...
+    // ... Number, Name, StartPoint, EndPoint, DistanceKm, ElevationDifferenceM, Notes ...
 
     /// <summary>Gets the navigation to the parent route.</summary>
     public Route Route { get; init; } = null!;
@@ -196,6 +196,7 @@ internal sealed class StageConfiguration : IEntityTypeConfiguration<Stage>
         builder.Property(s => s.DistanceKm).HasPrecision(8, 2);
         builder.Property(s => s.ElevationDifferenceM).HasPrecision(8, 1);
         builder.Property(s => s.Difficulty).HasConversion<string>().HasMaxLength(20);
+        builder.Property(s => s.Notes).HasMaxLength(2000);
 
         // Navigation: Stage (1) → HikeLog (n). Configured here on the parent side.
         // The Route → Stage FK is owned by RouteConfiguration, not repeated here.

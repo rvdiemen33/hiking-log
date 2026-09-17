@@ -32,6 +32,7 @@ A single day-stage of a route.
 | DistanceKm | decimal | Length in km |
 | ElevationDifferenceM | decimal | Elevation difference in metres |
 | Difficulty | enum | Easy / Moderate / Hard |
+| Notes | string? | Personal note, optional, max 2000 chars |
 
 ### HikeLog
 A log entry for a completed stage.

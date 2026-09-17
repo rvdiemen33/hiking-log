@@ -154,8 +154,9 @@ using OneOf;
 /// <param name="DistanceKm">The length in kilometres.</param>
 /// <param name="ElevationDifferenceM">The elevation difference in metres.</param>
 /// <param name="Difficulty">The difficulty level.</param>
+/// <param name="Notes">Optional personal note about the stage.</param>
 public record AddStage(int RouteId, int Number, string Name, string StartPoint, string EndPoint,
-    decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty);
+    decimal DistanceKm, decimal ElevationDifferenceM, Difficulty Difficulty, string? Notes);
 
 /// <summary>Result returned after a stage is successfully created.</summary>
 /// <param name="Id">The primary key of the newly created stage.</param>
@@ -175,6 +176,7 @@ internal sealed class AddStageValidator : AbstractValidator<AddStage>
         RuleFor(x => x.DistanceKm).GreaterThan(0);
         RuleFor(x => x.ElevationDifferenceM).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Difficulty).IsInEnum();
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
 
@@ -207,7 +209,8 @@ public sealed class AddStageHandler(IHikingLogDataContext db, IValidator<AddStag
             EndPoint = command.EndPoint,
             DistanceKm = command.DistanceKm,
             ElevationDifferenceM = command.ElevationDifferenceM,
-            Difficulty = command.Difficulty
+            Difficulty = command.Difficulty,
+            Notes = command.Notes
         };
         db.Stages.Add(stage);
         await db.SaveChangesAsync(ct);
