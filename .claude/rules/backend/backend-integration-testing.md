@@ -158,6 +158,11 @@ public class RouteFaker : Faker<CreateRouteRequest>
 Fakers for child resources take the parent id in their constructor (`new StageFaker(routeId)`), so generated
 requests always reference a valid parent.
 
+**Pass `null` for optional fields — never generate a value.** `StageFaker` and `HikeLogFaker` both pass `null`
+for their `string? Notes` argument, so a faker yields the minimal valid request and a test asserts nothing it
+did not ask for. A test that cares about the field opts in explicitly:
+`new StageFaker(routeId).Generate() with { Notes = "..." }`.
+
 ## When not to write an integration test
 
 - Validators — test the rules and edge cases as a unit test in `HikingLog.Application.Tests`.
