@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <UserSecretsId>4287b7d2-fa35-4d3a-9338-50dc46bdeed4</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
