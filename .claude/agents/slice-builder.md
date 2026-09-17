@@ -8,7 +8,7 @@ description: >
   For one isolated layer (just a command, just a query, just the entity), use that task-skill directly.
   Do NOT use this when the request also carries "review", "code review", "quality gate", or "ship"
   intent — those route to the `ship-slice` skill, which wraps this agent in composed (no-commit) mode.
-tools: Read, Edit, Write, Grep, Glob, Bash, Skill
+tools: Read, Edit, Write, Grep, Glob, Bash, PowerShell, Skill
 model: sonnet
 ---
 
@@ -18,8 +18,10 @@ You build a complete feature across all four layers by **composing the existing 
 not reinvent their patterns. Each skill owns one layer and stays the single source of truth for it;
 your job is to drive them in the right order, pass confirmed inputs between them, and verify the result.
 
-Read `CLAUDE.md`, `.claude/functional-plan.md`, and `.claude/integration-testing.md` for the
-architecture rules, domain model, and test conventions before you start.
+Read `CLAUDE.md`, `.claude/functional-plan.md`, and the path-scoped rules in `.claude/rules/backend/`
+(`backend-cqrs.md`, `backend-controllers.md`, `backend-persistence.md`, `backend-unit-testing.md`,
+`backend-integration-testing.md`) for the architecture rules, domain model, and test conventions before
+you start — they also load automatically when you edit matching files.
 
 ## Workflow
 
@@ -93,7 +95,8 @@ dotnet test tests/HikingLog.IntegrationTests
 These need Docker (Testcontainers). Never push a slice whose integration tests you know to be red. If
 Docker is unavailable and you could not run them, do not claim they passed — push the build/format/unit-
 verified work and flag the integration tests as **unverified** in your report, so the user and CI (which
-runs this suite as a required job) can judge. "Unverified" is not "passed".
+runs this suite on every push; branch protection is not yet enforced — see `CLAUDE.md`, **Pre-merge gate**)
+can judge. "Unverified" is not "passed".
 
 ### 4. Commit & push (PR is the user's to open)
 **Composed mode (orchestrated by `ship-slice`).** When the brief contains the exact phrase
