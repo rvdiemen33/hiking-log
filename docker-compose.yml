@@ -19,10 +19,10 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_HTTP_PORTS: "8080"
+      ASPNETCORE_HTTP_PORTS: "8090"
       ConnectionStrings__HikingLog: "Server=sqlserver;Database=HikingLog;User Id=sa;Password=HikingLog_Dev123!;TrustServerCertificate=True"
     depends_on:
       sqlserver:
