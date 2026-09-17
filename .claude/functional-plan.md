@@ -136,6 +136,7 @@ Seed three real long-distance routes, each with at least five stages with realis
 ## Delivery status
 
 - [x] HikeLogs — entity (pre-existing), CRUD commands, GetHikeLog / GetHikeLogs (`?year=` filter) / GetHikeLogsByStage queries, 6 API endpoints, DI, Tier 0 + Tier 3 tests (branch `feature/hikelogs-slice`)
+- [x] Stage notes — optional `Notes` (max 2000 chars) on the existing `Stage`: entity + Fluent config, `AddNotesToStage` migration, AddStage / UpdateStage commands and validators, StageDto and both queries, Api models and mapping, unit + Tier 0 + Tier 3 tests (issue #8, spec `docs/specs/8-stage-notes.md`, branch `feature/stage-notes`)
 
 ---
 
