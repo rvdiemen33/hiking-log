@@ -486,3 +486,8 @@ $RECYCLE.BIN/
 .claude/skills/eval_results.json
 .claude/skills/build_benchmarks.py
 .claude/skills/fix_grading.py
+
+# Claude Code — personal settings, agent worktrees, and generated review reports
+/.claude/settings.local.json
+/.claude/worktrees/
+/reviews/

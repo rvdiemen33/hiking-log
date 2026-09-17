@@ -1,5 +1,10 @@
 # Hiking Log
 
+## Persona
+
+Act as a senior .NET developer. Use a technical tone: precise, dense, assumes deep expertise. Respond in the
+same language the user writes in; code, comments, and repository documentation are always in English.
+
 ## What is this project?
 
 REST API for tracking completed stages on long-distance hiking trails (LAW, Pieterpad, GR5).
@@ -29,6 +34,17 @@ HikingLog.slnx
 - Never work directly on `master` — always create a feature branch before starting.
 - Naming convention: `feature/<short-description>` (e.g. `feature/add-stage-query`).
 - For larger or parallel tasks: use `git worktree` so branches can be built and tested in isolation.
+
+## Git conventions
+
+- Conventional Commits in English, imperative mood: `feat(<scope>): …`, `fix(<scope>): …`,
+  `docs(<scope>): …`, `test(<scope>): …`, `chore(<scope>): …` — the scope is the feature or area
+  (`hikelogs`, `skills`, `plan`).
+- One feature = one `feature/<...>` branch = one reviewed `feat(...)` commit (plus a `docs(plan)` commit for
+  the delivery status), merged into `master` with a merge commit (`Merge feature/<x> into master`).
+- Source control is GitHub (`gh`). Opening a PR is always the user's call — never run `gh pr create`
+  unprompted; `gh` is deliberately absent from the permission allow-list.
+- Outside the `ship-slice` skill and a standalone `slice-builder` run, commit or push only when the user asks.
 
 ## Verification
 
@@ -88,31 +104,36 @@ dotnet user-secrets set "ConnectionStrings:HikingLog" "Server=localhost;Database
 - Define `IHikingLogDataContext` in `HikingLog.Application`, implement in `HikingLog.Infrastructure`.
 - Never return entities at the API boundary — always use API models with mapping via extension methods.
 
-## CQRS structure (Application)
+## Key patterns (details in `.claude/rules/backend/`)
 
-Each feature is a vertical slice: commands, queries, and validators are co-located, not spread across type folders. Add a new feature by creating a new folder — do not touch existing slices.
+Path-scoped rules load automatically when you read or edit a matching file; when you orchestrate from the
+main loop before touching any file, read them explicitly. One line each here — the rule file is the source
+of truth.
 
-```
-Application/
-├── Routes/
-│   ├── Commands/
-│   │   ├── AddRoute.cs        ← record + validator + handler in one file
-│   │   └── UpdateRoute.cs
-│   └── Queries/
-│       ├── GetRoute.cs        ← record + DTO + handler in one file (queries have no validator)
-│       └── GetRoutes.cs
-├── Stages/
-│   ├── Commands/
-│   └── Queries/
-├── HikeLogs/
-│   ├── Commands/
-│   └── Queries/
-├── Data/
-│   └── Contracts/
-│       └── IHikingLogDataContext.cs
-└── Extensions/
-    └── ServiceCollectionExtensions.cs
-```
+- **CQRS** — `backend-cqrs.md` (`src/HikingLog.Application/**`). Vertical slice per feature; one file holds
+  record + validator + handler (commands) or record + DTO + handler (queries); handlers inject
+  `IHikingLogDataContext` and run their validator explicitly; `OneOf` results — top-level Add
+  `OneOf<T, ValidationFailed>`, child Add / Update `OneOf<T, ValidationFailed, NotFound>`, Delete
+  `OneOf<Success, NotFound>` (no validator), Get single `OneOf<TDto, NotFound>`, Get collection
+  `IReadOnlyList<TDto>`; never exceptions for expected failures; handlers and validators registered
+  manually in `AddApplication()`.
+- **Controllers** — `backend-controllers.md` (`src/HikingLog.Api/**`). Typed handler injection via the primary
+  constructor (never IMediator); request/response records plus hand-written mapping extensions per feature;
+  200 GET/PUT · 201 POST (`CreatedAtAction`) · 204 DELETE · 400 validation (`ValidationProblem`) · 404 not
+  found, each mapped from a `OneOf` arm; collection GETs never 404.
+- **Persistence** — `backend-persistence.md` (`src/HikingLog.Domain/**`, `src/HikingLog.Infrastructure/**`).
+  Plain entities with navigations on both sides; one `IEntityTypeConfiguration<T>` per entity
+  (`HasMaxLength` on every string, `HasPrecision` on every decimal, enums as strings, each relationship
+  configured once on the parent side); expression-bodied `DbSet`s on context and interface; migrations only
+  via `dotnet ef`.
+- **Unit tests** — `backend-unit-testing.md` (`tests/HikingLog.Application.Tests/**`,
+  `tests/HikingLog.Api.Tests/**`). xUnit + NSubstitute + Bogus; substitute `IHikingLogDataContext`; assert the
+  `OneOf` arm and the side effect; collection handlers (`ToListAsync`) are not unit-testable against a
+  substituted `DbSet` — cover them with Tier 0/Tier 3.
+- **Integration tests** — `backend-integration-testing.md` (`tests/HikingLog.IntegrationTests/**`).
+  Testcontainers SQL Server + Respawn; Tier 0 (HTTP contract, every status code per verb, behavioural filter
+  tests) and Tier 3 (handler resolved from DI against the real database); Bogus fakers with
+  `CustomInstantiator`. Test projects mirror `src/` one-to-one.
 
 ## Coding standards
 
@@ -128,37 +149,37 @@ Application/
 - Register DI via `ServiceCollectionExtensions` per layer — not directly in `Program.cs`.
 - Register handlers manually in `ServiceCollectionExtensions` — no automatic assembly scanning.
 
-### OneOf patterns
+## Claude Code setup
 
-- Add (top-level entity): `OneOf<TResult, ValidationFailed>` — no `NotFound`
-- Add (child with parent FK) and Update: `OneOf<TResult, ValidationFailed, NotFound>`
-- Delete: `OneOf<Success, NotFound>` — no validator
-- Get single: `OneOf<TResult, NotFound>`; Get collection: `IReadOnlyList<TDto>` (never fails)
-- Never use exceptions for expected error paths — always use OneOf.
+Everything is committed; nothing needs installing beyond the CLI.
 
-## Test conventions
+```
+.claude/
+├── rules/backend/*.md          ← path-scoped conventions (`paths:` frontmatter), loaded on demand
+├── skills/<name>/SKILL.md      ← task-skills, orchestrators, review entry points (evals/ next to each)
+├── agents/*.md                 ← slice-builder + read-only review lenses (spawned via the Agent tool)
+├── commands/check.md           ← `/check` — the verification sequence
+├── functional-plan.md          ← domain spec, always loaded (see Functional plan)
+├── archive/                    ← superseded skills/agents/rules, kept for reference (inert — not loaded)
+└── settings.json               ← team permission allow/deny list; personal overrides go in the gitignored
+                                   settings.local.json
+reviews/                        ← generated review reports (gitignored)
+```
 
-- `HikingLog.Application.Tests` — pure unit tests; handlers tested with NSubstitute mocks of `IHikingLogDataContext` and Bogus for test data.
-- `HikingLog.Api.Tests` — controller/integration tests; tests HTTP status code, response body, and routing.
-- `HikingLog.IntegrationTests` — integration tests with real SQL Server via Testcontainers and Respawn; Tier 0 (HTTP contract) and Tier 3 (handler with database).
-- No shared state between tests; use `[Fact]` for single cases, `[Theory]` + `[InlineData]` for multiple inputs.
-- File structure in `tests/` mirrors `src/`: test class ↔ handler/controller is one-to-one.
-
-See @.claude/integration-testing.md for the full conventions, structure, and code patterns.
-
-## HTTP status codes
-
-- 200 OK — successful GET, PUT
-- 201 Created — successful POST (with `CreatedAtAction`)
-- 204 No Content — successful DELETE
-- 400 Bad Request — validation failure (via `ValidationProblem`)
-- 404 Not Found — resource does not exist
+- **Never delete a superseded skill, agent, rule or instruction file** — move it to `.claude/archive/<kind>/`
+  and add a row to `.claude/archive/README.md` naming its replacement.
+- Eval workspaces (`.claude/skills/*-workspace/`) and skill-creator artifacts are gitignored.
+- Use Grep/Glob for discovery; read a file whole only when you are about to edit it.
+- After changing any skill, agent, rule, or instruction file, run `/review-claude-setup` (the `ship-slice`
+  skill does this in its step 4).
 
 ## Skills
 
 Each skill has a single responsibility; the session loads only the one(s) a request needs.
 Build a full feature by composing several (typically `domain-entity` → `dotnet-ef-migration` →
 `add-command`/`add-query` → `api-endpoint` → `register-di` → `integration-test`).
+
+Task-skills (one layer each):
 
 - `domain-entity` — entity in Domain + Fluent API config + DbSet on context and interface
 - `add-command` — one CQRS command (record + validator + handler) in `Application/<Feature>/Commands/`
@@ -167,28 +188,40 @@ Build a full feature by composing several (typically `domain-entity` → `dotnet
 - `register-di` — register handlers and validators in `AddApplication()`
 - `dotnet-ef-migration` — EF Core migrations (add, apply, undo, list)
 - `integration-test` — write Tier 0 (HTTP contract) and Tier 3 (handler + database) integration tests
-- `ship-slice` — composer skill that delivers a feature end to end **with the quality gate**: spawns
-  `slice-builder` (build only, no commit) → reviews the uncommitted working-tree diff with `code-review`
-  (apply confirmed fixes, re-verify) → conditional `skill-reviewer` (only if a skill/instruction file
-  changed) → completeness check vs `functional-plan.md` → commits the reviewed slice → docs sync →
-  reports the ready-to-run `gh pr create`. Runs at the main-loop level because a subagent cannot spawn
-  agents. Use for "build, review and ship X"; use `slice-builder` for a plain build, or a single
-  task-skill for one layer.
+
+Orchestrators and reviews (main-loop skills — a subagent cannot spawn agents):
+
+- `ship-slice` — delivers a feature end to end **with the quality gate**: spawns `slice-builder` (build only, no
+  commit) → `backend-review` over the uncommitted working tree (apply confirmed fixes, re-verify, loop to
+  convergence) → conditional `review-claude-setup` (only if a skill/agent/rule/instruction file changed) →
+  completeness check vs `functional-plan.md` → commits the reviewed slice → docs sync → reports the
+  ready-to-run `gh pr create`. Use for "build, review and ship X"; use `slice-builder` for a plain build, or a
+  single task-skill for one layer.
+- `backend-review` — parallel five-lens code review (architecture, data-performance, correctness,
+  code-quality, tests) of the working tree, the branch diff vs `master`, a file list, a PR, or the whole
+  solution; verified, de-duplicated report in `reviews/`. Read-only.
+- `review-claude-setup` — parallel six-lens review of `.claude/**` and `CLAUDE.md` against the live Claude Code
+  docs and against `src/` (code-example drift); report in `reviews/`. Read-only.
+- `/check` (command) — runs the verification sequence and stops at the first failure.
 
 ## Agents
 
-Spawn via the Agent tool (`subagent_type`). Agents run in their own context window.
+Spawn via the Agent tool (`subagent_type`). Agents run in their own context window and cannot spawn agents.
 
 - `slice-builder` — orchestrates the task-skills to build a whole feature end to end
   (brief → `domain-entity` → `dotnet-ef-migration` → commands/queries → `api-endpoint` →
   `register-di` → `integration-test` → verify → commit & push, or leave uncommitted in composed mode).
   Use for a full slice; use the individual skills for one layer. When wrapped by the `ship-slice` skill
-  it runs in **composed mode** — build and verify
-  only, leaving changes uncommitted so `ship-slice` can review before committing (it takes over the
-  commit/push).
-- `skill-reviewer` — read-only reviewer of the skills, agents, and instruction files (correctness vs
-  `src/`, skill/agent design, instruction consistency). Spawn after changing any `SKILL.md`, agent
-  definition file (`.claude/agents/*.md`), or instruction file.
+  it runs in **composed mode** — build and verify only, leaving changes uncommitted so `ship-slice` can
+  review before committing (it takes over the commit/push).
+- `backend-reviewer-architecture` · `backend-reviewer-data-performance` · `backend-reviewer-correctness` ·
+  `backend-reviewer-code-quality` · `backend-reviewer-tests` — read-only code-review lenses (`Read, Grep,
+  Glob`) that return a JSON findings array; orchestrated by `backend-review`, usable standalone for one angle.
+- `claude-setup-reviewer-skills` · `claude-setup-reviewer-agents` · `claude-setup-reviewer-config` ·
+  `claude-setup-reviewer-consistency` · `claude-setup-reviewer-placement` ·
+  `claude-setup-reviewer-code-examples` — read-only lenses over the Claude Code setup; orchestrated by
+  `review-claude-setup`. The `code-examples` lens verifies every code snippet and code claim in skills,
+  agents and rules against `src/` and `tests/`.
 
 ## Pre-merge gate
 

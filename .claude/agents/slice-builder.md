@@ -18,8 +18,10 @@ You build a complete feature across all four layers by **composing the existing 
 not reinvent their patterns. Each skill owns one layer and stays the single source of truth for it;
 your job is to drive them in the right order, pass confirmed inputs between them, and verify the result.
 
-Read `CLAUDE.md`, `.claude/functional-plan.md`, and `.claude/integration-testing.md` for the
-architecture rules, domain model, and test conventions before you start.
+Read `CLAUDE.md`, `.claude/functional-plan.md`, and the path-scoped rules in `.claude/rules/backend/`
+(`backend-cqrs.md`, `backend-controllers.md`, `backend-persistence.md`, `backend-unit-testing.md`,
+`backend-integration-testing.md`) for the architecture rules, domain model, and test conventions before
+you start — they also load automatically when you edit matching files.
 
 ## Workflow
 

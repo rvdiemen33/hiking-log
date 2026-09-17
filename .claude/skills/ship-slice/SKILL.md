@@ -6,8 +6,9 @@ description: >
   asks to "build, review and ship feature X", "run the full quality gate for X", "deliver X with code
   review", or otherwise wants the slice built AND reviewed AND committed in one orchestrated pass. It
   composes the existing pieces — the `slice-builder` agent (which it drives in a no-commit "composed
-  mode"), the `code-review` skill, the `skill-reviewer` agent — and runs the chain at the main-loop
-  level (a subagent cannot spawn agents, so this cannot live inside `slice-builder`). Do NOT use this for
+  mode"), the `backend-review` skill (five read-only lens agents), the `review-claude-setup` skill — and
+  runs the chain at the main-loop level (a subagent cannot spawn agents, so this cannot live inside
+  `slice-builder`). Do NOT use this for
   a plain "add feature X" with no review/ship intent (that stays `slice-builder`), nor for a single
   layer (use the individual task-skills).
 ---
@@ -19,17 +20,18 @@ re-implement what they own. The chain is: **build (no commit) → review the wor
 skill review → completeness check → commit & push → docs sync → report.**
 
 **Why this is a main-loop skill, not an agent or part of `slice-builder`:** a subagent cannot spawn
-agents. `slice-builder` has no `Agent` tool, so it cannot run `skill-reviewer` or the `code-review` skill
-(which itself fans out agents). Only the main loop has `Agent` + `Skill`, so the orchestration must run
+agents. `slice-builder` has no `Agent` tool, so it cannot run `backend-review` or `review-claude-setup`
+(both fan out lens agents). Only the main loop has `Agent` + `Skill`, so the orchestration must run
 here.
 
-Read `CLAUDE.md`, `.claude/functional-plan.md`, and `.claude/integration-testing.md` first for the
-architecture rules, domain model, and test conventions.
+Read `CLAUDE.md`, `.claude/functional-plan.md`, and the path-scoped rules in `.claude/rules/backend/`
+first for the architecture rules, domain model, and test conventions (the rules load automatically once
+you touch matching files, but you orchestrate before that happens).
 
 ## Core principle: review BEFORE the commit
 
 `slice-builder` builds and self-verifies but — when invoked by this skill — **does not commit**. The
-review, the conditional skill review, and the completeness check all run on the **uncommitted slice**
+review, the conditional Claude-setup review, and the completeness check all run on the **uncommitted slice**
 (everything the working tree adds since the branch point — see "Determining the slice diff" below). Only
 once every gate is green do you commit the reviewed slice as a single clean `feat(...)` commit. This is
 the whole point: nothing known-bad ever reaches a commit.
@@ -60,24 +62,25 @@ In composed mode `slice-builder` leaves the changes **uncommitted**, and a new s
   `git add <file>` actual content during the loop — a staged snapshot taken before a fix would be out of
   date the moment the fix lands. You stage content exactly once, at commit (step 6: `git add -A`), which
   captures every reviewed file including new ones.
-- **Exposing untracked files to the diff-based `code-review` skill — use `git add -N`.** The
-  `code-review` skill gathers its scope with `git diff HEAD`, which **omits untracked files**, and a new
-  slice is *mostly* untracked. So before running it, run
-  `git add -N <slice paths>` (intent-to-add): this is **not** staging content — it records a
+- **`backend-review` needs no staging tricks.** Its working-tree scope resolves the file list from
+  `git status --short` and its lenses read the files directly, so untracked slice files are reviewed
+  as-is and every later fix is picked up on the next round.
+- **Only if you additionally run the session-level `code-review` skill** (optional extra pass — see step 0):
+  it gathers its scope with `git diff HEAD`, which **omits untracked files**. Run
+  `git add -N <slice paths>` (intent-to-add) first: this is **not** staging content — it records a
   zero-length placeholder so `git diff` renders the new files' full content as additions, while the
-  content stays in the working tree and every later fix is still picked up there. It composes cleanly
-  with the final `git add -A` at commit. Caveat: intent-to-add changes how `git stash` treats those
-  files — prefer `Edit`/`Write` rollback regardless; if you must fully abort with stash (see the step-3
-  non-progress guard), plain `git stash` already covers paths given `git add -N`.
-- If you fall back to the inline review agents instead of the skill, you do not need `git add -N` — the
-  agents read every path reported by `git status --short` directly.
+  content stays in the working tree. It composes cleanly with the final `git add -A` at commit. Caveat:
+  intent-to-add changes how `git stash` treats those files — prefer `Edit`/`Write` rollback regardless;
+  if you must fully abort with stash (see the step-3 non-progress guard), plain `git stash` already
+  covers paths given `git add -N`.
 
 ## What "confirmed" means and who applies fixes
 
 You (the main loop) own the working tree — the review tools do not write to it. For each round:
-- A finding is **confirmed** when the review tool reports it at high confidence: the `code-review` skill
-  already filters to its high-confidence findings; `skill-reviewer` returns severities — treat
-  **BLOCKER and MAJOR** as confirmed.
+- A finding is **confirmed** when it survived the review skill's own verification pass and carries
+  severity **CRITICAL or SIGNIFICANT** — both `backend-review` and `review-claude-setup` drop
+  unverifiable findings before reporting. MINOR findings are advisory: apply one only when the fix is
+  trivial and obviously correct; otherwise list it as follow-up.
 - Apply each confirmed finding yourself with `Edit`/`Write`, then re-verify (below).
 - If a finding's correct fix is genuinely unclear and no user is reachable, **stop and report it** —
   never guess at a fix you don't understand.
@@ -85,7 +88,7 @@ You (the main loop) own the working tree — the review tools do not write to it
 ## Progress tracking
 
 This is a long, multi-step orchestration. **Create a task list with `TaskCreate` at the start** — one
-task per step (pre-flight, build, review loop, conditional skill review, completeness check, commit &
+task per step (pre-flight, build, review loop, conditional Claude-setup review, completeness check, commit &
 push, docs sync, report) — and mark each `in_progress` when you start it and `completed` when it passes,
 with `TaskUpdate`. The review loop may take several rounds; reflecting that in the task gives the user
 live visibility into where the gate is. Keep it lightweight — it is for the user's visibility, not a
@@ -93,20 +96,32 @@ substitute for the per-step reporting below.
 
 ## Steps
 
-### 0. Tool check (required, run once before the review loop)
-The review mechanism is a **session-level capability, not a skill defined in this repo** — do not expect
-to find it under `.claude/skills/`. Two different things may be named "code-review" in the session:
-- a **PR-based plugin** `/code-review` — needs an open PR and comments via `gh`. **Not usable before a
-  commit** (and `gh` is not in this repo's allow-list).
-- the **`code-review` skill** — reviews "the current diff" locally and can apply fixes to the working
-  tree with `--fix`. **This is the one to use.**
+### 0. Review mechanism (read once before the review loop)
+The review steps use two **repo-owned** skills, both read-only and both defined under `.claude/skills/`:
+- **`backend-review`** (step 3) — fans out the five `backend-reviewer-*` lens agents over the working tree,
+  verifies and de-duplicates their findings against `CLAUDE.md` and `.claude/rules/backend/*.md`, and
+  returns CRITICAL/SIGNIFICANT findings inline plus a report in `reviews/` (gitignored).
+- **`review-claude-setup`** (step 4) — same shape over `.claude/**` and `CLAUDE.md`, with the six
+  `claude-setup-reviewer-*` lenses.
 
-Treat this as a **runtime branch, not a capability probe**: when you reach step 3, invoke
-`Skill("code-review")`; if it asks for a PR URL or tries to use `gh`, abandon it immediately and use the
-**fallback**. **Fallback (always available):** review inline from the main loop — spawn a few parallel
-read-only agents (`Explore`, or `general-purpose`) over the slice diff, one each for `CLAUDE.md`
-adherence, bugs, and comment/spec adherence; then confirm each finding with one independent skeptic agent
-before applying. Never block the pipeline because the packaged skill is missing.
+Invoke each with `Skill(...)`, stating the scope explicitly ("scope: working tree", or an explicit file
+list for a scoped re-review). Neither skill edits anything — you apply the fixes.
+
+Do **not** confuse them with the session-level `code-review` skill or the PR-based `/code-review` plugin:
+the plugin needs an open PR and `gh` (not usable before a commit, and `gh` is not in the allow-list);
+the session skill is a generic reviewer that knows nothing about this repo's rules. You may run the
+session-level `code-review` skill as an **optional extra pass** when the user asked for maximum
+thoroughness — it needs `git add -N` on untracked files first (see "Determining the slice diff").
+
+Both skills carry their own fallback for a lens agent that is missing from the registry (which happens
+when the definition was created in the same session) — they substitute a read-only `Explore` agent with
+the lens checklist inlined, so a missing lens never blocks the gate.
+
+**Fallback (only if a review skill itself cannot run at all):** review inline from the main loop — spawn
+a few parallel read-only agents (`Explore`, or `general-purpose`) over the paths from
+`git status --short`, one each for `CLAUDE.md`/rules adherence, bugs, and spec adherence; confirm each
+finding with one independent skeptic agent before applying. Never block the pipeline because a review
+tool is unavailable — but say in the report which mechanism ran.
 
 ### 1. Pre-flight
 - **Confirm scope first.** Establish the feature name and what to build from the user's request,
@@ -153,17 +168,14 @@ Handle its result:
   layer and re-verify — but never proceed to review until fully green.)
 
 ### 3. Review loop (the core — runs before any commit)
-Operate on the slice diff (see "Determining the slice diff"). **Setup (once, before the first round):** if
-you will run the diff-based `code-review` skill, first run `git add -N` on every path `git status --short`
-reports as `??`, so its `git diff HEAD` sees the untracked slice files (see "Determining the slice diff"
-for why this is not content-staging). Then, each round:
-1. Run the **`code-review` skill** (working-tree variant, with `--fix`; otherwise the step-0 fallback).
-   Apply only **confirmed** findings (see "What 'confirmed' means"). **Scale the review effort to the
-   slice's size and novelty:** a small slice that mirrors an existing one (e.g. another CRUD feature
-   built from the same task-skills as Routes/Stages) warrants **medium** effort — fewer, high-confidence
-   findings; a large, novel, or architecturally unusual slice warrants **high** effort. Do not default
-   to the most expensive setting for routine slices. (If the user asked to be thorough / "audit", lean
-   high regardless.)
+Operate on the slice diff (see "Determining the slice diff"). Each round:
+1. Run the **`backend-review` skill** with scope **working tree** (first round) — or, on a scoped
+   re-review, with the explicit list of files the previous round's fixes touched. Apply only
+   **confirmed** findings (see "What 'confirmed' means") with `Edit`/`Write`. **Scale the extra effort to
+   the slice's size and novelty:** a small slice that mirrors an existing one (e.g. another CRUD feature
+   built from the same task-skills as Routes/Stages) needs nothing beyond `backend-review`; for a large,
+   novel, or architecturally unusual slice — or when the user asked to be thorough / "audit" — add the
+   optional session-level `code-review` pass described in step 0.
 2. **Re-verify after every round** at the chosen safety level: the `/check` sequence (`dotnet build`,
    `dotnet format --verify-no-changes`, `dotnet test tests/HikingLog.Application.Tests`,
    `dotnet test tests/HikingLog.Api.Tests`) **plus the integration tests, which `/check` does NOT
@@ -191,21 +203,22 @@ tree is back in its last verified-green state. Do this with `Edit`/`Write`: for 
 never existed at `HEAD`, so `git diff` cannot recover their prior state — `Read` a file before you edit
 it if you may need to roll it back. **Prefer `Edit`/`Write` rollback over stash** — it is precise and
 unaffected by index state. `git restore`/`git reset` are not in the allow-list. Stash is only for a
-*full* abort and its exact form depends on whether you ran `git add -N` (step 3 setup): once intent-to-add
-is applied, those paths are tracked-as-empty, so plain `git stash` already covers them; `--include-untracked`
-is only needed for slice paths you never gave `git add -N`. Either way stash discards everything, so
+*full* abort and its exact form depends on whether you ran `git add -N` (only needed for the optional
+session-level pass): once intent-to-add is applied, those paths are tracked-as-empty, so plain `git stash`
+already covers them; otherwise use `git stash --include-untracked` so the untracked slice files are
+included. Either way stash discards everything, so
 reserve it for a full abort. Then stop and report —
 including the finding text, the file/line it references, the fixes you attempted, and why they failed.
 
-### 4. Conditional skill review (before commit)
-Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, or instruction file (`CLAUDE.md`,
-`.claude/*.md`) — detect via `git status --short` (includes untracked files). A normal slice touches
-none of these, so skip it then.
+### 4. Conditional Claude-setup review (before commit)
+Only if the slice changed a `.claude/skills/**`, `.claude/agents/**`, `.claude/rules/**`, or instruction
+file (`CLAUDE.md`, `.claude/*.md`, `.claude/settings.json`) — detect via `git status --short` (includes
+untracked files). A normal slice touches none of these, so skip it then.
 
-If it did: spawn `skill-reviewer`, apply confirmed fixes (BLOCKER/MAJOR), and repeat until clean (same
-convergence rule as step 3). Re-verify with the `/check` sequence — these changes are to skill/doc files
-that do not affect compiled code, so the integration tests are not required here; run them only if a fix
-also touched `src/` or `tests/`.
+If it did: run the **`review-claude-setup` skill** with scope **working tree**, apply confirmed fixes
+(CRITICAL/SIGNIFICANT), and repeat until clean (same convergence rule as step 3). Re-verify with the
+`/check` sequence — these changes are to skill/doc files that do not affect compiled code, so the
+integration tests are not required here; run them only if a fix also touched `src/` or `tests/`.
 
 ### 5. Completeness check (before commit)
 Spawn a read-only agent (`Explore`, or `general-purpose`) that compares **only the just-built feature**
