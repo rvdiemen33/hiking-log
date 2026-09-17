@@ -13,7 +13,7 @@ var sqlServer = builder
     .WithLifetime(ContainerLifetime.Persistent);
 
 var sqlDatabase = sqlServer
-    .AddDatabase("hikinglogs");
+    .AddDatabase("HikingLog");
 
 // ============================================
 // BACKEND SERVICES
