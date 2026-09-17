@@ -6,9 +6,11 @@ description: >
   did the feature make existing documentation wrong (correct it), is documentation now missing (create
   it) - where "none" is an answer and silence is not, harvests the domain model and endpoints into
   .claude/functional-plan.md, then archives the spec under docs/specs/archive/ and commits the
-  retirement. Use when a spec-driven feature has shipped and the
+  retirement. Establishes the merge itself from the git history rather than asking about it, so a
+  routine slice closes without a single question. Use when a spec-driven feature has shipped and the
   spec should be cleaned up: "close the spec", "retire the spec for X", "we're done with this spec",
-  "/spec-close". Refuses to run unless the spec's status is implemented.
+  "/spec-close", or once the pull request for a spec-driven feature has been merged. Refuses to run
+  unless the spec's status is implemented.
   Do NOT use to create, review, or implement a spec — those are spec-create, spec-review and
   spec-implement.
 ---
@@ -29,7 +31,10 @@ If the user gave a file path, use it. Otherwise:
 ls -t docs/specs/*.md | grep -v README
 ```
 
-Pick the most recently modified file with `status: implemented`.
+Pick the most recently modified file with `status: implemented`. When several qualify, run step 2's
+`git log` check **once per candidate slug** and prefer a candidate whose merge it proves — an
+`implemented` spec whose branch is still open is not ready to retire. Fall back to the most recently
+modified one when the check proves none of them.
 
 **Guards — stop immediately if any fails:**
 
@@ -46,6 +51,32 @@ Pick the most recently modified file with `status: implemented`.
 
 The spec stays alive until the code it produced has been reviewed and merged — if review bounces the
 implementation, the spec is the reference for the fixes.
+
+**Establish the merge yourself before asking about it.** The spec-flow commits carry the slug, so a
+merged branch leaves its trail on `master`:
+
+```bash
+git log master --oneline --grep="{slug}" | head -5
+git log origin/master --oneline --grep="{slug}" | head -5
+```
+
+`--grep` matches anywhere in a commit message, so a bare hit proves nothing — a revert, a follow-up or
+a longer word containing the slug all match. **Only two exact subjects count as proof:**
+
+- `Merge feature/{slug} into master`
+- `docs(spec): mark {slug} implemented`
+
+Read the matched subjects and accept only those two; anything else falls through to the question. The
+slice's own `feat(...)` commit is **not** proof — its scope is the feature area, not the slug
+(`feat(stages): …` for slug `stage-notes`), so it never matches. `git log` is in the permission
+allow-list; `gh` deliberately is not, so do not reach for it here.
+
+On proof, treat the merge as confirmed and **skip question 1 below** — asking a question you have just
+answered from the history is friction, not a gate. Say in the report which commit and which ref carried
+the proof.
+
+When neither ref shows the slug the branch is not merged **or** the local refs are stale, and those two
+are indistinguishable without a fetch. Ask question 1 as written.
 
 Before asking anything, answer **three questions** from the spec and the shipped code. Each gets an
 explicit answer — **"none" is an answer, silence is not** — and every answer lands in the report
@@ -69,9 +100,12 @@ explicit answer — **"none" is an answer, silence is not** — and every answer
    sections do not mention; a convention the slice introduced that no rule captures. Answer: what to
    create and where, or "none".
 
-Then ask once (AskUserQuestion — every applicable question in a single call, at most four):
+Then ask once (AskUserQuestion — every applicable question in a single call, at most four). **When no
+question applies, ask nothing and go straight to step 3** — that is the normal outcome for a routine
+slice whose merge is provable and which yields no decision:
 
-1. "Has `{slug}`{ (issue #{issue})} been reviewed and merged?" — **Yes, close it** / **Not yet, keep the spec**.
+1. Only when the merge could **not** be established above: "Has `{slug}`{ (issue #{issue})} been
+   reviewed and merged?" — **Yes, close it** / **Not yet, keep the spec**.
 2. Only when close-out question 1 (lasting decision) found one: "The spec records {one-line decision}.
    Promote it to an ADR before archiving?" — **Yes, write the ADR** / **No, the functional plan and git
    history are enough**.
@@ -151,6 +185,7 @@ superseded skill, agent, rule or instruction file is always archived under `.cla
 ## Step 5 — Report
 
 > "Closed `{slug}`{ (issue #{issue})}.
+> - Merge: {the commit that proves it, and the ref it was found on — or 'confirmed by you'}
 > - Lasting decision: {ADR `docs/adr/{number}-{slug}.md`, or 'none — routine slice'}
 > - Existing documentation corrected: {files and what changed, or 'none needed'}{; follow-up in
 >   `CLAUDE.md` / `.claude/**`: {list}}
@@ -176,5 +211,6 @@ question was asked.
   `CLAUDE.md`, `.claude/rules/**` or `.claude/skills/**`.
 - **Use `git mv` (or `git rm` on explicit request), never a filesystem delete** — the commit and the
   retained history are the point.
-- This skill commits the retirement it was invoked to perform, after the user's confirmation in
-  step 2; it commits nothing else.
+- This skill commits the retirement it was invoked to perform, and commits nothing else. It waits for
+  the user's confirmation only on the questions step 2 actually asked; a routine slice with a provable
+  merge and three "none" answers asks nothing and commits without one.

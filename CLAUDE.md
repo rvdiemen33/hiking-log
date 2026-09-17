@@ -248,6 +248,8 @@ carry no `evals/`, because they produce a spec and a delegation, not generated c
   when a spec drives the slice, and standalone. Read-only.
 - `spec-close` — retires an **implemented** spec: three explicit close-out questions (lasting decision?
   docs made wrong? docs missing?), harvest into `functional-plan.md`, archive under `docs/specs/archive/`.
+  Establishes the merge from `git log` instead of asking, and is run right after the merge by whoever
+  merged, in that same session.
 
 ## Agents
 
@@ -298,7 +300,10 @@ Non-trivial features are specified in `docs/specs/` before they are built:
 `spec-create` → `draft` → `spec-review` → `reviewed` → **(you set `approved` by hand)** → `spec-implement`
 (whose `ship-slice` review loop runs `spec-verify`) → `implemented` → `spec-close`. `spec-create` runs the
 `spec-review` step itself when its draft comes out without `TO CONFIRM:` markers, so those two arrows can
-land in one run; every other transition still needs its own invocation. Specs are ephemeral working
+land in one run. **Merging a spec-driven feature is followed by `spec-close` in the same session** — the
+session that merged it is the only one that observes the merge, and `spec-close` proves it from
+`git log` rather than asking, so a routine slice retires without a question. Every other transition
+still needs its own invocation. Specs are ephemeral working
 artifacts; what lasts is harvested into
 `.claude/functional-plan.md` (and `docs/adr/`) when the spec is closed.
 
