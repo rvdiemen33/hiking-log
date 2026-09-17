@@ -128,7 +128,9 @@ tool is unavailable — but say in the report which mechanism ran.
 - **Confirm scope first.** Establish the feature name and what to build from the user's request,
   reconciled with `.claude/functional-plan.md`. If neither the request nor the plan resolves what to
   ship, **stop and ask the user** — you run at the main loop and can ask interactively (unlike
-  `slice-builder`). Never invent scope.
+  `slice-builder`). Never invent scope. **If the caller supplied an approved spec** (`spec-implement`
+  does), that spec *is* the scope and the skip-list: take it as authoritative, do not re-derive it, and
+  do not ask the user to restate what the spec already settled.
 - **Inventory which layers already exist, and trim the brief accordingly.** A feature is often
   partially built — e.g. the entity, its Fluent config, the `DbSet`, and the migration may already be in
   place while the Application/Api layers are not. Before spawning `slice-builder`, check the repo for
@@ -227,6 +229,12 @@ against its corresponding section in `.claude/functional-plan.md`, not the whole
 always report the features that are deliberately not built yet). Ask: are all endpoints of *this* feature
 present? Are all business rules of *this* feature covered? Report any gaps as follow-up — do not build
 them unprompted.
+
+**When the caller supplied a spec** (`spec-implement` passes `docs/specs/<name>.md` as the authoritative
+scope document), that spec is the **primary** source for this check — it is more specific than the plan
+and lists the exact commands, queries, endpoints, business rules and tests the slice owes. Compare
+against it first, then against the feature's plan section **if one exists**; a spec-driven feature may be
+new to the plan, and an absent plan section is expected, not a gap.
 
 ### 6. Commit & push
 Only now, with every gate green. **Stage the full reviewed slice first — `git add -A`** — so every new
