@@ -8,7 +8,9 @@ description: >
   appends Review Notes to the spec, and flips status draft to reviewed when no blockers remain; the
   skill then commits the gate result. Use when the user says "review my spec", "check the
   spec for X", "is this spec ready", "/spec-review", or right after spec-create once they have edited
-  the draft. Takes an optional file path; defaults to the most recent draft in docs/specs/.
+  the draft. spec-create also invokes this skill itself, in its Phase 9, whenever the draft it just
+  refined carries no TO CONFIRM markers.
+  Takes an optional file path; defaults to the most recent draft in docs/specs/.
   Do NOT use to review backend code — that is backend-review — and do NOT use to review the Claude Code
   setup (review-claude-setup).
 ---
@@ -20,9 +22,14 @@ judgment lives in the agent — its model is pinned in `.claude/agents/spec-revi
 passes the same reviewer regardless of the session model. **Do not review the spec yourself** and do
 not edit it; the agent owns both the Review Notes and the status flip.
 
+Two callers reach this skill: the user directly, and `spec-create`'s Phase 9 on a draft whose refine
+pass left no `TO CONFIRM:` marker. The steps below are the same either way — when `spec-create`
+invoked it, that skill's own report relays the verdict, so keep step 3 brief rather than repeating it.
+
 ## Step 1 — Locate the spec
 
-If the user gave a file path, use it. Otherwise list the specs newest first:
+If a file path was given — by the user, or by `spec-create`'s Phase 9 — use it. Otherwise list the
+specs newest first:
 
 ```bash
 ls -t docs/specs/*.md | grep -v README

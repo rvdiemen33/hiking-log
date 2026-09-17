@@ -4,7 +4,9 @@ description: >
   Spec-driven development intake for HikingLog. Interviews the user about a new feature, grounds it in
   a read-only exploration of the solution, writes a structured spec to docs/specs/ with status: draft,
   then auto-refines that draft by folding the model-pinned spec-reviewer agent's advisory findings back
-  into the spec, so the human opens an already-cleaned draft. Writes no production code and scaffolds
+  into the spec, so the human opens an already-cleaned draft. When that draft comes out clean — no
+  surviving TO CONFIRM markers — it also runs the spec-review gate in the same run, so the human opens
+  a spec that has already been through review. Writes no production code and scaffolds
   nothing. Use when the user wants to plan or design a feature before building it: "create a spec for
   X", "let's design X first", "plan the implementation of X", "I have an idea for a new feature",
   "/spec-create". Do NOT use when the user wants to start building right away (use ship-slice or the
@@ -18,7 +20,11 @@ Interview the user about a feature and write a structured spec to `docs/specs/`,
 **read-only** exploration of the solution so the spec mirrors the conventions already in `src/`,
 avoids collisions, and records what the change touches. No code is generated and nothing is
 scaffolded. The skill closes by running `spec-reviewer` in **advisory** mode and folding its findings
-back into the spec automatically. The `draft → reviewed` gate stays with `spec-review`.
+back into the spec automatically, and then — **only when no `TO CONFIRM:` marker survives** — invokes
+the `spec-review` skill so the draft goes through the gate in the same run. The gate may still return
+blockers of its own; what the chain saves is the extra turn, not the verdict. A draft with surviving markers
+stops at `draft`: the gate would fail on those markers by design, and only the user can resolve them.
+The gate itself still belongs to `spec-review`; this skill invokes it, it never flips `status` by hand.
 
 Read `.claude/functional-plan.md` before you start — the domain model, endpoints and business rules
 there are the baseline every spec extends or refines. Read `.claude/rules/backend/backend-cqrs.md` and
@@ -43,6 +49,8 @@ them field by field:
    party, a data owner), append `(owner: {who})` so the reviewer can name them with the blocker.
 5. **Verify** the assembled understanding with the user before writing (Phase 5).
 6. **Commit the draft** the moment it is written and refined (Phase 8) — before any code exists.
+7. **Run the gate when the draft is clean** (Phase 9) — invoke `spec-review` only when no
+   `TO CONFIRM:` marker survives, so a clean draft reaches `reviewed` in one run.
 
 The phases list what a complete spec needs. Treat them as **what to populate, derived-first** — a
 checklist for you, not a questionnaire to read out.
@@ -279,8 +287,8 @@ After writing, run `spec-reviewer` against the spec and **fold its findings back
    > Review the spec at `docs/specs/{name}.md` in **advisory mode**.
 
    Advisory mode reports findings and changes nothing — no Review Notes, no `status` change. The
-   `draft → reviewed` transition belongs exclusively to `spec-review`, run after the user has read
-   and adjusted the draft.
+   `draft → reviewed` transition belongs exclusively to `spec-review`, which Phase 9 invokes when the
+   refined draft carries no surviving marker. Never flip `status` yourself, in any phase.
 
    **Fallback if `spec-reviewer` is not in the registry** (which happens when its definition was
    created in this same session): spawn a read-only `Explore` agent instead, inlining the eight
@@ -331,9 +339,41 @@ exempts from "commit only when the user asks"; it never needs a confirmation.
    unrelated work in the tree.
 3. Commit: `docs(spec): add {slug} draft`. Do not push; the user decides when the branch goes up.
 
-Then report (fill the bullets from Phase 7 step 4; write "None — the draft is fully resolved." when
-there are no markers; when the user chose to stop in step 1, replace the "committed on" clause with
-"**not committed** — switch to `master` or `feature/{slug}` and rerun Phase 8"):
+Do not report yet — Phase 9 decides what the report says.
+
+---
+
+## Phase 9 — Chain the gate when the draft is clean
+
+A refined draft with no surviving `TO CONFIRM:` marker has nothing left that only the user can answer,
+so the gate can run now instead of waiting a turn. A draft that still carries a marker must not go to
+the gate: `spec-reviewer` escalates every marker to a blocker, so the run would spend a full review to
+tell you what Phase 7 step 4 already listed.
+
+1. **Did Phase 8 actually commit?** If step 1 there ended in *stop* — the draft is still uncommitted on
+   a branch it must not land on — skip the gate entirely and go to route A. `spec-review` stages and
+   commits on whatever branch is checked out, so chaining it now would put the spec exactly where
+   Phase 8 just refused to put it.
+2. Use the Phase 7 step 4 grep result — do not re-derive it.
+3. **Markers survive** → skip the gate. `status` stays `draft`; report route A below.
+4. **No markers** → invoke the `spec-review` skill (`Skill` tool, `skill: spec-review`) with the spec
+   path as its argument. That skill owns the gate end to end: it dispatches `spec-reviewer` in gate
+   mode, the agent appends `## Review Notes` and flips `status`, and the skill commits the result. Do
+   not dispatch `spec-reviewer` yourself, do not edit the spec afterwards, and do not commit again —
+   a second commit here would duplicate what `spec-review` step 4 already made.
+5. Relay the gate's own verdict in the report. The gate can still find blockers the advisory passes
+   did not (it judges the same eight dimensions but decides rather than advises); when it does,
+   `status` stays `draft` and its blockers are the user's next action — report route C.
+
+---
+
+## Phase 10 — Report
+
+Pick the route that matches what happened. When the user chose to stop in Phase 8 step 1, replace the
+"committed on" clause with "**not committed** — switch to `master` or `feature/{slug}` and rerun
+Phase 8", and use route A regardless of markers.
+
+**Route A — markers survived, gate skipped:**
 
 > "Spec written to `docs/specs/{name}.md` (`status: draft`), auto-refined against the spec-reviewer
 > ({N} finding(s) resolved directly in the spec) and committed on `feature/{slug}`.
@@ -341,12 +381,43 @@ there are no markers; when the user chose to stop in step 1, replace the "commit
 > **{N} item(s) need your decision** (surviving `TO CONFIRM` markers):
 > - [{section}] {question}
 >
+> The review gate has **not** run — it would report these markers back as blockers.
+>
 > **Next steps:**
 > 1. Resolve the `TO CONFIRM` items — edit the spec and replace each marker with the confirmed value.
 > 2. Run `spec-review` — the gate that appends Review Notes and flips `status` to `reviewed` once no
 >    blockers remain.
 > 3. Set `status: approved` in the frontmatter once you are satisfied.
 > 4. Run `spec-implement` to build the feature from the spec."
+
+**Route B — gate ran, no blockers:**
+
+> "Spec written to `docs/specs/{name}.md`, auto-refined against the spec-reviewer ({N} finding(s)
+> resolved directly in the spec), then put through the review gate — **`status: reviewed`**, no
+> blockers. Both commits are on `feature/{slug}`.
+>
+> {N} warning(s) and {N} suggestion(s) are recorded in `## Review Notes`:
+> - [{severity}] {finding}
+>
+> No `TO CONFIRM` items are left.
+>
+> **Next steps:**
+> 1. Read the spec and address the warnings you care about.
+> 2. Set `status: approved` in the frontmatter — the one transition no skill makes for you.
+> 3. Run `spec-implement` to build the feature from the spec."
+
+**Route C — gate ran and found blockers:**
+
+> "Spec written to `docs/specs/{name}.md`, auto-refined against the spec-reviewer ({N} finding(s)
+> resolved directly in the spec) and committed on `feature/{slug}`. The review gate then found
+> **{N} blocker(s)** — `status` stays `draft`:
+>
+> {numbered blockers}
+>
+> **Next steps:**
+> 1. Resolve the blockers in the spec.
+> 2. Run `spec-review` again.
+> 3. Set `status: approved` once it comes back clean, then run `spec-implement`."
 
 ---
 
@@ -357,5 +428,8 @@ there are no markers; when the user chose to stop in step 1, replace the "commit
 - **Explore read-only.** The exploration agents are `Explore`; they never edit.
 - **Never invent a value silently** — derive it from the codebase, or mark it `TO CONFIRM:`.
 - **Commit only the spec, and only in Phase 8.** The draft commit is the one commit this skill owns;
-  it stages nothing else and never pushes.
+  it stages nothing else and never pushes. The gate commit that may follow belongs to `spec-review` —
+  let that skill make it, never repeat it here.
+- **Never flip `status` yourself.** `draft → reviewed` is the `spec-review` gate's, and `approved`
+  is the user's alone.
 - Stay within this repository (`C:\github\hiking-log`) and add no packages.
